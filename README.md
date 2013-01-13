@@ -18,15 +18,15 @@ In order to configure the Community Hub with a database, you address and the use
 
 An example contents of this file could be: 
 
- environments {
- 	development {
- 		dataSource {
- 			url = "jdbc:mysql://127.0.0.1/communityhub"
- 			username = "USERNAME"
- 			password = "PASSWORD"
- 		}
- 	}
- }
+    environments {
+    	development {
+ 	    	dataSource {
+ 		    	url = "jdbc:mysql://127.0.0.1/communityhub"
+ 			    username = "USERNAME"
+ 			    password = "PASSWORD"
+ 		    }
+ 	    }
+     }
 
 # License 
 
