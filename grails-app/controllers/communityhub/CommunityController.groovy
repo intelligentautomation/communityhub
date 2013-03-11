@@ -11,7 +11,6 @@ import grails.plugins.springsecurity.Secured
 import org.springframework.dao.DataAccessException
 
 import com.iai.communityhub.AlertType
-import com.iai.communityhub.SecUser
 import com.iai.communityhub.dao.AlertDao
 import com.iai.communityhub.dao.CapabilitiesCacheDao
 import com.iai.communityhub.dao.GroupDao
@@ -29,6 +28,7 @@ import com.iai.proteus.common.sos.GetCapabilities
 import com.iai.proteus.common.sos.model.SensorOffering
 import com.iai.proteus.common.sos.model.SosCapabilities
 import com.iai.proteus.common.sos.util.SosUtil
+import communityhub.security.SecUser;
 
 
 class CommunityController {

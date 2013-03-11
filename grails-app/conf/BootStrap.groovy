@@ -1,6 +1,3 @@
-import com.iai.communityhub.SecRole
-import com.iai.communityhub.SecUser
-import com.iai.communityhub.SecUserSecRole
 import com.iai.communityhub.dao.CapabilitiesCacheDao
 import com.iai.communityhub.dao.GroupDao
 import com.iai.communityhub.dao.GroupsAlertsXrefDao
@@ -9,6 +6,10 @@ import com.iai.communityhub.dao.AlertDao
 import com.iai.communityhub.dao.OfferingPropertiesDao
 import com.iai.communityhub.dao.RuleDao
 import com.iai.communityhub.dao.ServiceDao
+
+import communityhub.security.SecRole;
+import communityhub.security.SecUser;
+import communityhub.security.SecUserSecRole;
 
 class BootStrap {
 

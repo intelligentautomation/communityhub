@@ -5,8 +5,8 @@
  */
 package communityhub
 
-import com.iai.communityhub.SecUser
 import com.iai.communityhub.model.Group
+import communityhub.security.SecUser;
 
 class SecTagLib {
 	
