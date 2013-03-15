@@ -8,12 +8,19 @@ package com.iai.communityhub;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
+import java.util.Calendar;
+import java.util.Date;
 
 import org.xml.sax.SAXException;
 
-import com.iai.communityhub.model.Service;
 import com.iai.proteus.common.sos.GetCapabilities;
 
+/**
+ * Utility methods 
+ * 
+ * @author Jakob Henriksson
+ *
+ */
 public class HubUtils {
 
 	/**
@@ -51,17 +58,16 @@ public class HubUtils {
 	 * Returns the Capabilities document from the given service, null
 	 * if there is an error 
 	 * 
-	 * @param service
+	 * @param endpoint
 	 * @return
 	 */
-	public static String getCapabilitiesDocument(Service service) {
+	public static String getCapabilitiesDocument(String endpoint) {
 		
 		// try and fetch the capabilities document
 		// TODO: add user-specifiable timeout values
 		try {
 			 
-			String capabilities =
-				GetCapabilities.getDocument(service.getEndpoint());
+			String capabilities = GetCapabilities.getDocument(endpoint);
 
 			// TODO: we should do this instead 
 //			String capabilities =
@@ -112,6 +118,22 @@ public class HubUtils {
 				replaceAll("\\)", "_").replaceAll("\\(", "_").replaceAll("/", "_");
 	}	
 	
+	/**
+	 * Adds the given number of time units to the date 
+	 * 
+	 * E.g. Date inFiveMinutes = addTimeToDate(new Date(), Calendar.MINUTE, 5)
+	 * 
+	 * @param date
+	 * @param unit
+	 * @param number
+	 * @return
+	 */
+	public static Date addTimeToDate(Date date, int unit, int number) {
+		Calendar cal = Calendar.getInstance(); 
+		cal.setTime(date); 
+		cal.add(unit, number); 
+		return cal.getTime(); 
+	}
 	
 	private static class SingletonHolder { 
 		public static final HubUtils INSTANCE = new HubUtils();

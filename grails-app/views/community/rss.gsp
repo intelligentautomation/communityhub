@@ -10,10 +10,10 @@
 
   <g:each var="alert" in="${alerts}">
     <item>
-      <title>${alert.getTypePretty()}<g:ifAlert rule="${alert}" type="service"> (<g:getServiceUrl rule="${alert}" />)</g:ifAlert><g:ifAlert rule="${alert}" type="irregular"> (${alert.offering})</g:ifAlert></title>
+      <title>${alert.getTypePretty()}<g:ifAlert rule="${alert}" type="service"> (${alert.service.endpoint})</g:ifAlert><g:ifAlert rule="${alert}" type="irregular"> (${alert.offering})</g:ifAlert></title>
       <link>${createLink(absolute: true, controller: 'alert', action: 'id', params: [id: alert.id])}</link>
       <guid>${createLink(absolute: true, controller: 'alert', action: 'id', params: [id: alert.id])}</guid>
-      <pubDate><g:formatDate date="${alert.timestamp}" format="yyyy-MM-dd HH:mm:ssZ" /></pubDate>
+      <pubDate><g:formatDate date="${alert.dateCreated}" format="yyyy-MM-dd HH:mm:ssZ" /></pubDate>
       <author>
           <name>Community Hub</name>
       </author>

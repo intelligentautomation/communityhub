@@ -5,19 +5,23 @@
  */
 package communityhub
 
-import com.iai.communityhub.dao.RuleDao
-import com.iai.communityhub.model.Rule
-
+/**
+ * A Quartz job for checking for service down alerts
+ * 
+ * @author Jakob Henriksson
+ *
+ */
 class ServiceDownJob {
 	
 	def rulesService 
 	
-	def jdbcTemplate
-
 	static triggers = {
+		// TODO: make this configurable 
 		// every 5 minutes 
 		// repeatCount: -1 = execute indefinitely 
-		simple name: "Service down", repeatInterval: 300000l, repeatCount: -1
+		simple name: "Service down job", 
+			repeatInterval: 300000l, 
+			repeatCount: -1
 	}
 
 	/**
@@ -26,12 +30,12 @@ class ServiceDownJob {
 	 * @return
 	 */
 	def execute() {
-		log.info("Executing service down job");
+		log.info("Executing service down job")
 		
-		RuleDao daoRule = new RuleDao(jdbcTemplate);
-		Collection<Rule> rules = daoRule.findServiceDownRules();
+		// find all service down rules
+		def rules = Rule.findAllWhere(type : AlertType.SERVICE_DOWN.toString())
 
 		// execute the found rules 
-		rulesService.executeAllRules(rules);
+		rulesService.executeAllRules(rules)
 	}
 }

@@ -195,7 +195,7 @@
 		     data-lon_upper="${alert.lonUpper}"
 		   </g:if>
 		   style="<g:if test='${counter % 2 == 0}'>highlight</g:if><g:else> </g:else>">
-		  <img src="${resource(dir: 'images/', file: 'exclamation.png') }" />
+		  <img src="${resource(dir: 'images/fugue', file: 'exclamation-24.png') }" />
 		  <strong>${alert.getTypePretty()}</strong>
 		  <span>
 		  <g:if test="${alert.latLower && alert.lonLower}">
@@ -211,13 +211,13 @@
 		    At sensor offering ${alert.offering}, recorded: 
 		  </g:else>
 		  
-		  <g:formatDate format="yyyy-MM-dd kk:mm" date="${alert.timestamp}"/>
-		  (<a href="/communityhub/alert/id/${alert.id}/">details</a>)
+		  <g:formatDate format="yyyy-MM-dd kk:mm" date="${alert.dateCreated}"/>
+		  (<g:link controller="alert" action="view" id="${alert.id}">details</g:link>)
 		</li>
 		<g:set var="counter" value="${counter + 1}" />
 	      </g:each>
 	    </ul>
-	    <g:link controller="alert" action="view">More alerts...</g:link>
+	    <g:link controller="community">More alerts...</g:link>
 	  </g:if>
 	  <g:else>
 	    <p><i>There are currently no alerts.</i></p>

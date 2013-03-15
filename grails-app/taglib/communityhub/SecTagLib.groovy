@@ -5,40 +5,37 @@
  */
 package communityhub
 
-import com.iai.communityhub.model.Group
 import communityhub.security.SecUser;
 
 class SecTagLib {
 	
 	def springSecurityService
 	
-	def isGroupAdmin = { attrs, body -> 
+	def ifGroupAdmin = { attrs, body -> 
 		if (springSecurityService.isLoggedIn()) {
-			def group = attrs.group;
+			def group = attrs.group
 			def user = SecUser.get(springSecurityService.principal.id)
 			// make sure we have the right type 
 			if (group instanceof Group) {
-				Group g = (Group)group;
 				// return the body if the logged in user is the admin of the
 				// group 
-				if (g.getAdmin().equals(user.username))
-					out << body();
+				if (group.admin.equals(user))
+					out << body()
 			}
 		}
 	}
 
-	def isNotGroupAdmin = { attrs, body ->
+	def ifNotGroupAdmin = { attrs, body ->
 		if (springSecurityService.isLoggedIn()) {
-			def group = attrs.group;
+			def group = attrs.group
 			def user = SecUser.get(springSecurityService.principal.id)
 			// make sure we have the right type
 			if (group instanceof Group) {
-				Group g = (Group)group;
 				// return the body if the logged in user is the admin of the
 				// group
-				if (!g.getAdmin().equals(user.username))
+				if (!group.admin.equals(user))
 					// logged in, but not admin
-					out << body();
+					out << body()
 			}
 		} else {
 			// not logged in at all

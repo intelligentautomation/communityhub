@@ -5,90 +5,76 @@
  */
 package communityhub
 
-import org.springframework.dao.DataAccessException
-
 import com.iai.communityhub.HubUtils
-import com.iai.communityhub.dao.CapabilitiesCacheDao
-import com.iai.communityhub.dao.OfferingPropertiesDao
-import com.iai.communityhub.dao.ServiceDao
-import com.iai.communityhub.model.CapabilitiesCache
-import com.iai.communityhub.model.OfferingProperties
-import com.iai.communityhub.model.Service
 import com.iai.proteus.common.sos.GetCapabilities
 import com.iai.proteus.common.sos.model.SensorOffering
 import com.iai.proteus.common.sos.model.SosCapabilities
 import com.iai.proteus.common.sos.util.SosUtil
 
+/**
+ * Service for service (hmmm...) 
+ * 
+ * @author Jakob Henriksson
+ *
+ */
 class ServiceService {
 
-	def jdbcTemplate
-	
+	/**
+	 * Adds a service 
+	 * 
+	 * @param type
+	 * @param url
+	 * @return
+	 */
 	def addService(String type, String url) {
 		
-		if (url.trim().equals("")) {
-			def error = "No service URL was provided, please try again";
-			return [url : url, type : type, error : error]
-		}
-		
-		Service service = new Service();
-		service.setEndpoint(url.trim());
-		service.setType(type);
-		
-		ServiceDao daoService = new ServiceDao(jdbcTemplate);
-		
-		// check if service already exists
-		if (daoService.serviceExists(service)) {
-			def error = "Service already exists";
-			return [ url: url, type : type, error : error ]
-		}
-		
-		// download Capabilities document
-		String capabilities = HubUtils.getCapabilitiesDocument(service);
+		// try and download Capabilities document
+		String capabilities = HubUtils.getCapabilitiesDocument(url.trim())
 		if (capabilities != null) {
 			
+			// create the service object 
+			def service = new Service()
+			service.endpoint = url.trim()
+			service.type = type
+			service.alive = true
+		
 			// parse the capabilities document
 			SosCapabilities sosCapabilities =
-				GetCapabilities.parseCapabilitiesDocument(capabilities);
+				GetCapabilities.parseCapabilitiesDocument(capabilities)
 
-			// extract and set title
-			String title = SosUtil.getServiceTitle(sosCapabilities);
+			// extract and set title if we can (otherwise default will be used)
+			String title = SosUtil.getServiceTitle(sosCapabilities)
 			if (title != null)
-				service.setTitle(title);
-			else
-				service.setTitle("Untitled " + type);
-			
-			// add the service
-			// (AND update the object with the ID from the database,
-			//  needed below)
-			service = daoService.insert(service);
-							
-			// store Capabilities document in cache
-			CapabilitiesCacheDao daoCache = new CapabilitiesCacheDao(jdbcTemplate);
-			CapabilitiesCache cache = new CapabilitiesCache();
-			cache.setService(service.getId());
-			cache.setCapabilities(capabilities);
-			daoCache.insert(cache);
-			
-			// populate offerings_properties table
-			OfferingPropertiesDao daoOfferingsProperties =
-				new OfferingPropertiesDao(jdbcTemplate);
+				service.title = title
 				
+			// save service object
+			service.save(flush:true)
+			
+			// create and save Capabilities document in cache
+			def cache = new CapabilitiesCache()
+			cache.service = service
+			cache.capabilities = capabilities
+			cache.save()
+			
+			// populate offering-properties 
 			for (SensorOffering sensorOffering : sosCapabilities.getOfferings()) {
 				for (String property : sensorOffering.getObservedProperties()) {
-					
-					OfferingProperties op = new OfferingProperties();
-					op.setServiceId(service.getId());
-					op.setOffering(sensorOffering.getGmlId());
-					op.setObservedProperty(property);
-					
-					daoOfferingsProperties.insert(op);
+					// create object 
+					OfferingProperties op = new OfferingProperties()
+					op.service = service
+					op.offering = sensorOffering.getGmlId()
+					op.observedProperty = property
+					// save the object 
+					op.save()
 				}
 			}
 
-			return service;	
+			// return the service 
+			return service
 		}
 		
-		return null;
+		// default 
+		return null
 	}
 	
 	/**
@@ -98,26 +84,26 @@ class ServiceService {
 	 * @return
 	 */
     def Map<String, Object> findBoundingBoxesForService(int id) {
-		
-		try {
-		
-			CapabilitiesCacheDao daoCache =
-				new CapabilitiesCacheDao(jdbcTemplate);
-			CapabilitiesCache cache = daoCache.findForServiceId(id);
-		
-			SosCapabilities capabilities =
-				GetCapabilities.parseCapabilitiesDocument(cache.getCapabilities());
+
+		// find the service 
+		Service service = Service.get(id)
+		if (service != null) {
+
+			// find the cached capabilities document 	
+			CapabilitiesCache cache = CapabilitiesCache.findByService(service)
+			if (cache != null) {
+				// parse the cached capabilities document 
+				SosCapabilities capabilities =
+					GetCapabilities.parseCapabilitiesDocument(cache.getCapabilities())
+				// return the bounding boxes 
+				Map<String, Object> locations = getBoundingBoxes(capabilities)
 				
-			Map<String, Object> locations =
-				getBoundingBoxes(capabilities);
-				
-			return locations;
-			
-		} catch (DataAccessException e) {
-			log.error("Data access exception: " + e.getMessage());
+				return locations
+			}
 		}
-		
-		return null;
+
+		// default 					
+		return null
     }
 	
 	/**
@@ -129,18 +115,18 @@ class ServiceService {
 	 */
 	private Map<String, Object> getBoundingBoxes(SosCapabilities capabilities) {
 		/// Offering Id -> Object (containing bounding box)
-		Map<String, Object> result = new HashMap<String, Object>();
+		Map<String, Object> result = new HashMap<String, Object>()
 
 		for (SensorOffering offering: capabilities.getOfferings()) {
-			Map<String, Double> bbox = new HashMap<String, Double>();
-			bbox.put("upper-lat", offering.getUpperCornerLat());
-			bbox.put("upper-lon", offering.getUpperCornerLong());
-			bbox.put("lower-lat", offering.getLowerCornerLat());
-			bbox.put("lower-lon", offering.getLowerCornerLong());
-			result.put(offering.getGmlId(), bbox);
+			Map<String, Double> bbox = new HashMap<String, Double>()
+			bbox.put("upper-lat", offering.getUpperCornerLat())
+			bbox.put("upper-lon", offering.getUpperCornerLong())
+			bbox.put("lower-lat", offering.getLowerCornerLat())
+			bbox.put("lower-lon", offering.getLowerCornerLong())
+			result.put(offering.getGmlId(), bbox)
 		}
 
-		return result;
+		return result
 	}
 
 }

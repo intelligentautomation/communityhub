@@ -23,21 +23,8 @@
     
     <p class="lead">New group</p>
 
-    <g:if test="${success}">
-      <div class="alert alert-block alert-success fade in">
-	<h4 class="alert-heading">Success!</h4>
-	<p>${success}</p>
-      </div>
-    </g:if>
-
-    <g:if test="${error}">
-      <div class="alert alert-block alert-error fade in">
-	<h4 class="alert-heading">Failure!</h4>
-	<p>${error}</p>
-      </div>
-    </g:if>
-    
-    <form class="form-horizontal" action="" method="POST">
+    <form class="form-horizontal" method="POST"
+	  action="${createLink(controller: 'community', action: 'save')}">
       <div class="control-group">
 	<label class="control-label" for="inputName">Name</label>
 	<div class="controls">
@@ -50,10 +37,11 @@
 	<div class="controls">
 	  <input type="text" name="inputDescription" 
 		 id="inputDescription" placeholder="Description">
+	  <span class="help-block">Tell us what this group about</span>
 	</div>
       </div>
       <div class="form-actions">
-	<button type="submit" class="btn btn-primary">Create group</button>
+	<button type="submit" class="btn btn-primary"><i class="icon-ok icon-white"></i> Create group</button>
 	<button id="btn-cancel" type="button" class="btn">Cancel</button>
       </div>
 

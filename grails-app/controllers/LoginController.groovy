@@ -93,20 +93,27 @@ class LoginController {
 		String msg = ''
 		def exception = session[WebAttributes.AUTHENTICATION_EXCEPTION]
 		if (exception) {
+			// send code instead of message to template 
+			// the message will be resolved in template with <g:message />
 			if (exception instanceof AccountExpiredException) {
-				msg = g.message(code: "springSecurity.errors.login.expired")
+				msg = "springSecurity.errors.login.expired"
+//				msg = g.message(code: "springSecurity.errors.login.expired")
 			}
 			else if (exception instanceof CredentialsExpiredException) {
-				msg = g.message(code: "springSecurity.errors.login.passwordExpired")
+				msg = "springSecurity.errors.login.passwordExpired"
+//				msg = g.message(code: "springSecurity.errors.login.passwordExpired")
 			}
 			else if (exception instanceof DisabledException) {
-				msg = g.message(code: "springSecurity.errors.login.disabled")
+				msg = "springSecurity.errors.login.disabled"
+//				msg = g.message(code: "springSecurity.errors.login.disabled")
 			}
 			else if (exception instanceof LockedException) {
-				msg = g.message(code: "springSecurity.errors.login.locked")
+				msg = "springSecurity.errors.login.locked"
+//				msg = g.message(code: "springSecurity.errors.login.locked")
 			}
 			else {
-				msg = g.message(code: "springSecurity.errors.login.fail")
+				msg = "springSecurity.errors.login.fail"
+//				msg = g.message(code: "springSecurity.errors.login.fail")
 			}
 		}
 
@@ -114,7 +121,7 @@ class LoginController {
 			render([error: msg] as JSON)
 		}
 		else {
-			flash.message = msg
+			flash.error = msg
 			redirect action: 'auth', params: params
 		}
 	}

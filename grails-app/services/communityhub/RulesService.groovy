@@ -11,22 +11,10 @@ import org.joda.time.Duration
 import org.joda.time.Interval
 import org.joda.time.format.DateTimeFormat
 import org.joda.time.format.DateTimeFormatter
-import org.springframework.dao.DataAccessException
 
-import com.iai.communityhub.AlertType
 import com.iai.communityhub.HubUtils
 import com.iai.communityhub.Result
 import com.iai.communityhub.ServiceResponse
-import com.iai.communityhub.dao.AlertDao
-import com.iai.communityhub.dao.CapabilitiesCacheDao
-import com.iai.communityhub.dao.OfferingPropertiesDao
-import com.iai.communityhub.dao.RuleDao
-import com.iai.communityhub.dao.ServiceDao
-import com.iai.communityhub.model.Alert
-import com.iai.communityhub.model.CapabilitiesCache
-import com.iai.communityhub.model.OfferingProperties
-import com.iai.communityhub.model.Rule
-import com.iai.communityhub.model.Service
 import com.iai.proteus.common.sos.GetCapabilities
 import com.iai.proteus.common.sos.data.Field
 import com.iai.proteus.common.sos.data.SensorData
@@ -38,279 +26,191 @@ import com.iai.proteus.common.sos.util.SosUtil
 
 class RulesService {
 	
-	def jdbcTemplate 
-
 	/**
 	 * Finds the rule for a "service down" alert for a given service, 
 	 * or creates one if needed 
 	 * 
-	 * @param serviceId
+	 * @param service
 	 * @return
 	 */
-	private Rule getServiceDownRule(int serviceId) {
-		
-		RuleDao daoRule = new RuleDao(jdbcTemplate);
-		Rule rule = daoRule.findServiceDownRuleForService(serviceId);
-		
-		// if a rule is found, we return it  
-		if (rule != null)
-			return rule; 
-		
-		// if no rule is found, create rule for the given service
-		rule = new Rule();
-		rule.setType(AlertType.ALERT_SERVICE_DOWN.toString());
-		rule.setServiceId(serviceId);
-		
-		Rule insertedRule = daoRule.insert(rule);
-		
-		return insertedRule;
+	Rule getServiceDownRule(Service service) {
+		// find or create the rule 
+		// TODO: use enumeration type instead of string 
+		def rule = Rule.findOrCreateWhere(service: service, 
+				type : AlertType.SERVICE_DOWN.toString())
+		rule.save()
+		return rule
 	}
 	
 	/**
 	 * Finds the rule for an "irregular data delivery" alert for a 
 	 * given service, offering and property, or creates one if needed
 	 *
-	 * @param serviceId
+	 * @param service
 	 * @param offering
 	 * @param observedProperty
 	 * @param options 
 	 * @return
 	 */
-	private Rule getIrregularDataDeliveryRule(int serviceId, 
+	Rule getIrregularDataDeliveryRule(Service service, 
 			String offering, String observedProperty, JSONObject options) {
 		
-		boolean onlyProperties = options.get('add-all-properties');
+		boolean onlyProperties = options.get('add-all-properties')
 			
-		RuleDao daoRule = new RuleDao(jdbcTemplate);
 		// determine if we should query for rules that include the offering, 
 		// or only rules that are specified across observed properties  
-		String offeringToQueryFor = onlyProperties ? null : offering; 
-		Rule rule = 
-			daoRule.findIrregularDataDeliveryRule(serviceId, offeringToQueryFor, 
-				observedProperty);
-			
+		String offeringToQueryFor = onlyProperties ? null : offering
+		
+		// TODO: use enumeration type instead of string		
+		def rule = Rule.findWhere(service: service, 
+			offering: offeringToQueryFor, 
+			observedProperty: observedProperty, 
+			type: AlertType.IRREGULAR_DELIVERY.toString())
+		
 		// if a rule is found, we return it
-		if (rule != null)
-			return rule;
+		if (rule)
+			return rule
 		
 		// if no rule is found, create rule for the given service
-		rule = new Rule();
-		rule.setType(AlertType.ALERT_IRREGULAR_DATA_DELIVERY.toString());
-		rule.setServiceId(serviceId);
+		rule = new Rule()
+		rule.service = service
+		rule.type = AlertType.IRREGULAR_DELIVERY.toString()
 		// only add the offering if the rule is specified on S/O/P, 
 		// but skip it if the rule is specified on S/P
-		if (!onlyProperties) {
-			rule.setOffering(offering);
-		}
-		rule.setObservedProperty(observedProperty);
-		
-		Rule insertedRule = daoRule.insert(rule);
-		
-		return insertedRule;
+		if (!onlyProperties) 
+			rule.offering = offering
+		rule.observedProperty = observedProperty
+		rule.save(flush: true)
+				
+		return rule
 	}
 
 	/**
-	 * Executes a rule
+	 * Executes a collection of rules
 	 *
-	 * @param rule
+	 * @param rules
 	 */
-	private void executeAllRules(Collection<Rule> rules) {
+	public void executeAllRules(Collection<Rule> rules) {
 
 		// storing capabilities used for rules 
 		Map<Integer, SosCapabilities> capabilities = 
-			new HashMap<Integer, SosCapabilities>();
+			new HashMap<Integer, SosCapabilities>()
 			
-		log.info("Executing " + rules.size() + " rules");
+		log.info("Executing " + rules.size() + " rules")
 		
 		// iterate through all rules 
 		for (Rule rule : rules) { 
 		
-			AlertType alertType = AlertType.parse(rule.getType());
+			def alertType = AlertType.parse(rule.type)
 			switch (alertType) {
 	
-				case AlertType.ALERT_SERVICE_DOWN:
-	
-					executeServiceDownRule(rule);
-	
-					break;
-	
-				case AlertType.ALERT_IRREGULAR_DATA_DELIVERY:
+				case AlertType.SERVICE_DOWN:
 				
-					executeIrregularDataDeliveryRule(rule, capabilities);
+					executeServiceDownRule(rule)
 	
-					break;
+					break
 	
-				case AlertType.ALERT_USER_TEMPLATE:
+				case AlertType.IRREGULAR_DELIVERY:
+				
+					executeIrregularDataDeliveryRule(rule, capabilities)
 	
-					log.error("Not implemented yet.");
+					break
 	
-					break;
+				case AlertType.CUSTOM:
+	
+					log.error("Not implemented yet.")
+	
+					break
 	
 				default:
-					log.error("Did not understand rule type");
+					log.error("Did not understand rule type")
 			}
 		}
 	}
 	
-
-	/**
-	 * Executes a rule 
-	 * 
-	 * @param rule
-	 */
-//	private void executeRule(Rule rule) {
-//
-//		AlertType alertType = AlertType.parse(rule.getType());
-//		switch (alertType) {
-//
-//			case AlertType.ALERT_SERVICE_DOWN:
-//
-//				executeServiceDownRule(rule);
-//
-//				break;
-//
-//			case AlertType.ALERT_IRREGULAR_DATA_DELIVERY:
-//
-//				// there will always be a service ID
-//				int serviceId = rule.getService();
-//				// offering IDs and property IDs are optional
-//				// (but there must be at least one)
-//				String offering = rule.getOffering(); 
-////				int offeringId = rule.getOffering();
-//				String property = rule.getObservedProperty();
-//
-//				if (offering == null && property == null) {
-//					log.error("Does not know how to handle rule, " +
-//							"missing both offeringId and observed property, " +
-//							"skipping.");
-//					return;
-//				}
-//
-//				Collection<Group> groups =
-//						new GroupDao(jdbcTemplate).findGroupsForRule(rule.getId());
-//
-//				for (Group group : groups) {
-//					println "Group: " + group.getId();
-//				}
-//
-//				// get the service object
-//				Service service =
-//						new ServiceDao(jdbcTemplate).findUniqueObjectById("" + serviceId);
-//
-//				// we have an offering
-//				if (offering != null) {
-//
-////					Offering offering =
-////							new MyOfferingDao(jdbcTemplate).findUniqueObjectById("" + offeringId);
-//
-//					// AND an observed property
-//					if (property != null) {
-//
-//						println "Query (IRREGULAR): " + service.getEndpoint() + "; for " +
-//								offering + "; " + property;
-//
-//						executeRule(rule, service, offering, property);
-//
-//					}
-//					// we only have an offering
-//					else {
-//
-//						println "Query (IRREGULAR): " + service.getEndpoint() +
-//								"; for ALL properties in offering: " + offering;
-//
-//					}
-//				} else {
-//
-//					// there is no offering so we assume we have an
-//					// observed property (already verified)
-//
-//					println "Query (IRREGULAR): " + service.getEndpoint() +
-//							"; for ALL offerings for observed property: " +
-//							property;
-//							
-//					executeRule(rule, service, property); 
-//
-//				}
-//
-//				break;
-//
-//			case AlertType.ALERT_USER_TEMPLATE:
-//
-//				log.error("Not implemented yet.");
-//
-//				break;
-//
-//			default:
-//				log.error("Did not understand rule type");
-//		}
-//	}
 	
 	/**
 	 * Executes a service down rule 
 	 * 
 	 * @param rule
 	 */
-	private void executeServiceDownRule(Rule rule) {
+	void executeServiceDownRule(Rule rule) {
 		
 		// find the service associated with the rule
-		ServiceDao daoService = new ServiceDao(jdbcTemplate);
-		Service service;
+		Service service = rule.service
 		
-		try {
-			service = daoService.findUniqueObjectById("" + rule.getServiceId());
-		} catch (DataAccessException e) {
-			log.error("Data access exception: " + e.getMessage());
-			return;
-		}
-		
-		log.info("Executing rule: " + rule.getId());
+		log.info("Executing rule: " + rule.id)
 		
 		// try and fetch the capabilities document
-		String capabilities = HubUtils.getCapabilitiesDocument(service);
-		
+		String capabilities = 
+			HubUtils.getCapabilitiesDocument(service.getEndpoint())
 
 		// only store Capabilities documents, not exceptions 
-		boolean success = false;
+		boolean success = false
 		if (capabilities != null && !capabilities.contains("ExceptionReport")) {
-			success = true;
+			success = true
 		}
 		
+		// if we were able to contact the service, update the capabilities
+		// cache and update aliveness flag on service 
 		if (success) {
 		
 			// create capabilities cache object
-			CapabilitiesCache cache = new CapabilitiesCache();
-			cache.setService(service.getId());
-			cache.setCapabilities(capabilities);
-			// insert capabilities cache object
-			CapabilitiesCacheDao daoCache =
-				new CapabilitiesCacheDao(jdbcTemplate);
-			daoCache.insertOrUpdate(cache);
+			CapabilitiesCache cache = CapabilitiesCache.findByService(service)
+			if (!cache) {
+				// create a new object if it did not exist
+				cache = new CapabilitiesCache()
+				cache.service = service
+			}
+			// set or update capabilities cache
+			cache.capabilities = capabilities
+			cache.save(flush: true)
 			
 			log.info("Successfully fetched Capabilities document from: " +
-				service.getEndpoint());
+				service.getEndpoint())
 			
-			// update service status 
-			daoService.setAliveStatus(service, true);
+			service.alive = true
+			service.save(insert: false)
 			
-		} else {
+		} 
+		// if we could not contact the service, update the service object and 
+		// then generate an alert 
+		else {
+			
+			println "Will generate alert..."
 		
 			// update service status
-			daoService.setAliveStatus(service, false);
+			service.alive = false
+			service.save(flush: true, insert: false)
+			
+			println "Saved service..."
 		
-			// generate alert
-			Alert alert = new Alert(); 
-			alert.setServiceId(service.getId());
-			alert.setType(rule.getType());
-			alert.setDetail("We were not able to fetch the " +
+			// crate the alert
+			def alert = new Alert()
+			alert.service = service
+			alert.type = rule.type
+			// valid from NOW
+			Date now = new Date()
+			alert.validFrom = now
+			// valid to now + 5 minutes 
+			alert.validTo = HubUtils.addTimeToDate(now, Calendar.MINUTE, 5)
+			// alert details 
+			alert.detail = "We were not able to fetch the " +
 				service.getType() + " Capabilities " + 
-				"document from service endpoint " + service.getEndpoint());
+				"document from service endpoint " + service.getEndpoint()
+			if (!alert.save(flush: true)) {
+				alert.errors.each {
+					println it 
+				}
+			}
+//			alert.save(flush: true)
 			
-			// insert the alert and automatically associate the alert
-			// with relevant groups 
-			AlertDao daoAlert = new AlertDao(jdbcTemplate);
-			daoAlert.insert(alert, rule);
+			println "Created an alert..."
+
+			// associate the generated alert with the appropriate groups 
+			associateAlertWithGroups(alert, rule)
 			
-			log.info("Generated service down alert for rule ID: " + rule.getId());
+			log.info("Generated service down alert for rule ID: " + rule.id)
 		}
 	}
 	
@@ -320,42 +220,36 @@ class RulesService {
 	 * @param rule
 	 * @param capabilities Maps service IDs with parsed SosCapabilities objects 
 	 */
-	private void executeIrregularDataDeliveryRule(Rule rule, Map<Integer, SosCapabilities> capabilities) 
+	void executeIrregularDataDeliveryRule(Rule rule, Map<Integer, SosCapabilities> capabilities) 
 	{
 		
-		// there will always be a service ID
-		int serviceId = rule.getServiceId();
 		// offering IDs and property IDs are optional
 		// (but there must be at least one)
-		String offering = rule.getOffering();
-		String property = rule.getObservedProperty();
+		String offering = rule.getOffering()
+		String property = rule.getObservedProperty()
 
 		if (offering == null && property == null) {
 			log.error("Does not know how to handle rule, " +
 					"missing both offeringId and observed property, " +
-					"skipping.");
-			return;
+					"skipping.")
+			return
 		}
 
 		// get the service object
-		Service service =
-				new ServiceDao(jdbcTemplate).findUniqueObjectById("" + serviceId);
+		Service service = rule.service
 
 		// get the capabilities object
-		SosCapabilities caps = null;
-		if (capabilities.containsKey(service.getId())) {
+		SosCapabilities caps = null
+		if (capabilities.containsKey(service.id)) {
 			// get already parsed Capabilities
-			caps = capabilities.get(service.getId());
+			caps = capabilities.get(service.id)
 		} else {
-			CapabilitiesCacheDao cacheDao =
-				new CapabilitiesCacheDao(jdbcTemplate)
-			CapabilitiesCache cache =
-					cacheDao.findUniqueObjectById("" + service.getId());
+			CapabilitiesCache cache = CapabilitiesCache.findByService(service)
 			// parse the document
 			caps =
-				GetCapabilities.parseCapabilitiesDocument(cache.getCapabilities());
+				GetCapabilities.parseCapabilitiesDocument(cache.getCapabilities())
 			// store the capabilities object
-			capabilities.put(service.getId(), caps);
+			capabilities.put(service.id, caps)
 		}
 
 		// we have an offering
@@ -365,17 +259,18 @@ class RulesService {
 			if (property != null) {
 
 				log.info "Query (IRREGULAR): " + service.getEndpoint() + "; for " +
-						offering + "; " + property;
+						offering + "; " + property
 
-				executeRule(caps, rule, service, offering, property);
+				executeRule(caps, rule, service, offering, property)
 
 			}
 			// we only have an offering
 			else {
 
 				log.info "Query (IRREGULAR): " + service.getEndpoint() +
-						"; for ALL properties in offering: " + offering;
+						"; for ALL properties in offering: " + offering
 
+				// TODO: implement 
 			}
 			
 		} else {
@@ -384,9 +279,9 @@ class RulesService {
 			// observed property (already verified)
 
 			log.info "Query (IRREGULAR): " + service.getEndpoint() +
-					"; for ALL offerings for observed property: " +	property;
+					"; for ALL offerings for observed property: " +	property
 					
-			executeRule(caps, rule, service, property);
+			executeRule(caps, rule, service, property)
 
 		}
 
@@ -401,20 +296,14 @@ class RulesService {
 	 * @param offering
 	 * @param observedProperty
 	 */
-	private void executeRule(SosCapabilities capabilities, Rule rule, 
+	void executeRule(SosCapabilities capabilities, Rule rule, 
 		Service service, String offering, String observedProperty)
 	{
 
-		CapabilitiesCacheDao cacheDao = new CapabilitiesCacheDao(jdbcTemplate)
-		CapabilitiesCache cache =
-				cacheDao.findUniqueObjectById("" + service.getId());
-		SosCapabilities caps = 
-			GetCapabilities.parseCapabilitiesDocument(cache.getCapabilities());
-
-		SensorOffering sensorOffering =	caps.getOffering(offering);
+		SensorOffering sensorOffering =	capabilities.getOfferingById(offering)
 
 		// analyze 		
-		analyzeIrregularDataDelivery(rule, service, sensorOffering, observedProperty);
+		analyzeIrregularDataDelivery(rule, service, sensorOffering, observedProperty)
 	}
 	
 	/**
@@ -426,30 +315,31 @@ class RulesService {
 	 * @param offering
 	 * @param observedProperty
 	 */
-	private void executeRule(SosCapabilities capabilities, Rule rule, 
+	void executeRule(SosCapabilities capabilities, Rule rule, 
 		Service service, String observedProperty) 
 	{
 		
 		// find active offerings/properties pairs
-		OfferingPropertiesDao dao = new OfferingPropertiesDao(jdbcTemplate);
-		Collection<OfferingProperties> offerings = 
-			dao.findActiveForService(service.getId());
+		def offerings = 
+			OfferingProperties.findAllWhere(service: service, active: true) {
+				sort: "offering" 
+			}
 
 		// go through all offerings 
 		for (SensorOffering offering : capabilities.getOfferings()) {
 			// if we find one with the observed property, analyze 
-			if (offering.getObservedProperties().contains(observedProperty)) {
+			if (offering.observedProperties.contains(observedProperty)) {
 				
 				// check if we really should investigate this 
 				// offering/observed property pair
 				boolean analyze = includeOfferingProperty(offerings, 
-					offering.getGmlId(), observedProperty);
+					offering.getGmlId(), observedProperty)
 				
 				// analyze
 				if (analyze) {
 					 
 					analyzeIrregularDataDelivery(rule, service, 
-						offering, observedProperty);
+						offering, observedProperty)
 				}
 			}
 		}
@@ -464,17 +354,17 @@ class RulesService {
 	 * @param offeringId
 	 * @param observedProperty
 	 */
-	private boolean includeOfferingProperty(Collection<OfferingProperties> offerings, 
+	boolean includeOfferingProperty(Collection<OfferingProperties> offerings, 
 		String offeringId, String observedProperty) 
 	{
-		boolean foundOffering = false;
+		boolean foundOffering = false
 		for (OfferingProperties offeringProperty : offerings) {
 			// found the offering 
-			if (offeringProperty.getOffering().equals(offeringId)) {
-				foundOffering = true;
+			if (offeringProperty.offering.equals(offeringId)) {
+				foundOffering = true
 				// if the observed property matches, return True 
-				if (offeringProperty.getObservedProperty().equals(observedProperty))
-					return true;
+				if (offeringProperty.observedProperty.equals(observedProperty))
+					return true
 			} else {
 				/*
 				 * We know that the @{link OfferingProperties} objects
@@ -482,13 +372,13 @@ class RulesService {
 				 * for offering, but have passed it, we can stop
 				 */
 				if (foundOffering) {
-					break;
+					break
 				}
 			}
 			
 		}
 		// default 
-		return false;
+		return false
 	}
 	
 	/**
@@ -503,43 +393,44 @@ class RulesService {
 		SensorOffering sensorOffering, String observedProperty) 
 	{
 		
+		// TODO: update 
+		
 		// TODO: fix
-		DateTime to = new DateTime();
-		DateTime from = to.minusHours(24);
+		DateTime to = new DateTime()
+		DateTime from = to.minusHours(24)
 		
 		ServiceResponse serviceResponse =
 			getSensorData(service.getEndpoint(), sensorOffering,
-				observedProperty, from, to);
+				observedProperty, from, to)
 			
-		log.info("Yes, we got response from: " + sensorOffering.getName());
+		log.info("Yes, we got response from: " + sensorOffering.getName())
 			
 		if (serviceResponse.getResult().equals(Result.RESULT_OK)) {
 			
-			SensorData sensorData = serviceResponse.getSensorData();
+			SensorData sensorData = serviceResponse.getSensorData()
 			
 			// TODO: do not hard code column name
-			String[] data = sensorData.getData(new Field("date_time"));
+			String[] data = sensorData.getData(new Field("date_time"))
 			
-			Set<Duration> durations = new HashSet<Duration>();
+			Set<Duration> durations = new HashSet<Duration>()
 			
 			// TODO: this might have to be dynamic
-			String zuluFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'";
-			DateTimeFormatter fmt =
-				DateTimeFormat.forPattern(zuluFormat);
+			String zuluFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
+			DateTimeFormatter fmt =	DateTimeFormat.forPattern(zuluFormat)
 			
 			for (int j = 1; j < data.length - 1; j++) {
 		
-				DateTime t1 = fmt.parseDateTime(data[j - 1]);
-				DateTime t2 = fmt.parseDateTime(data[j]);
+				DateTime t1 = fmt.parseDateTime(data[j - 1])
+				DateTime t2 = fmt.parseDateTime(data[j])
 		
-				Duration interval = new Duration(t1, t2);
+				Duration interval = new Duration(t1, t2)
 		
-				durations.add(interval);
+				durations.add(interval)
 			}
 		
 			// remove 'zero' durations if there are any,
 			// might be caused by duplicates
-			durations.remove(new Duration(0, 0));
+			durations.remove(new Duration(0, 0))
 		
 //			for (Duration duration : durations) {
 //				log.info("Duration: " + duration.getStandardMinutes());
@@ -547,25 +438,48 @@ class RulesService {
 			
 			if (durations.size() > 1) {
 				
-				Alert alert = new Alert();
-				alert.setServiceId(service.getId());
-				alert.setValidFrom(from.toDate());
-				alert.setValidTo(to.toDate());
-				alert.setType(AlertType.ALERT_IRREGULAR_DATA_DELIVERY.toString());
-				alert.setLatitude(sensorOffering.getLowerCornerLat());
-				alert.setLongitude(sensorOffering.getLowerCornerLong());
-				alert.setOffering(sensorOffering.getGmlId());
-				alert.setObservedProperty(observedProperty);
-				alert.setDetail("Varying or irregular data delivery identified.");
-		
-				AlertDao alertDao = new AlertDao(jdbcTemplate);
-				alertDao.insert(alert, rule);
+				Alert alert = new Alert()
+				alert.service = service
+				alert.validFrom = from.toDate()
+				alert.validTo to.toDate()
+				alert.type = AlertType.IRREGULAR_DELIVERY.toString()
+				alert.latLower = sensorOffering.getLowerCornerLat()
+				alert.latUpper = sensorOffering.getUpperCornerLat()
+				alert.lonLower = sensorOffering.getLowerCornerLong()
+				alert.lonUpper = sensorOffering.getUpperCornerLong()
+				alert.offering = sensorOffering.getGmlId()
+				alert.observedProperty = observedProperty
+				alert.detail = "Varying or irregular data delivery identified"
+				alert.save(flush: true)
 				
-				log.warn("Alert generated for " + sensorOffering.getGmlId());
+				// associate the generated alert with the appropriate groups  			
+				associateAlertWithGroups(alert, rule)
+				
+				log.warn("Alert generated for " + sensorOffering.getGmlId())
 			}
 		
 		}
 
+	}
+	
+	/**
+	 * Associates the alert with the groups that are setup with the given 
+	 * rule 
+	 * 
+	 * @param alert
+	 * @param rule
+	 */
+	void associateAlertWithGroups(Alert alert, Rule rule) {
+
+		// find the groups that are associated with the given rule
+		def groups = Group.withCriteria {
+			rules {
+				eq('id', rule.id)
+			}
+		}
+				
+		// associate the alert with each found group
+		groups.each { it.addToAlerts(alert) }
 	}
 	
 	/**
@@ -578,22 +492,22 @@ class RulesService {
 	 * @param to
 	 * @return
 	 */
-	private ServiceResponse getSensorData(String serviceUrl, SensorOffering sensorOffering,
+	ServiceResponse getSensorData(String serviceUrl, SensorOffering sensorOffering,
 		String observedProperty, DateTime from, DateTime to)
 	{
 
 		List<String> commonFormats =
-				SosUtil.commonResponseFormats(sensorOffering);
+				SosUtil.commonResponseFormats(sensorOffering)
 
 		if (commonFormats.size() > 0) {
 
 			GetObservationRequest request =
 					new GetObservationRequest(sensorOffering, observedProperty,
-					commonFormats.get(0));
+					commonFormats.get(0))
 
 			// add the time interval
-			Interval interval = new Interval(from, to);
-			request.addTimeInterval(TimeInterval.fromJoda(interval));
+			Interval interval = new Interval(from, to)
+			request.addTimeInterval(TimeInterval.fromJoda(interval))
 
 //			System.out.println("Trying interval: " + interval);
 
@@ -601,103 +515,104 @@ class RulesService {
 
 				// fetch sensor data
 				SensorData sensorData =
-						SosUtil.getObservationData(serviceUrl, request, 60, 60);
+						SosUtil.getObservationData(serviceUrl, request, 60, 60)
 
 				// return sensor data
 				ServiceResponse ret =
-						new ServiceResponse(Result.RESULT_OK, sensorData);
+						new ServiceResponse(Result.RESULT_OK, sensorData)
 				// set the from and to times
-				ret.setFrom(from);
-				ret.setTo(to);
+				ret.setFrom(from)
+				ret.setTo(to)
 
-				return ret;
+				return ret
 
 			} catch (Exception e) {
 
 			}
 		}
 
-		return null;
+		// default 
+		return null
 	}
 	
-	private def createJson(List<Object[]> sensorData) {
-
-		if (sensorData.size() > 0) {
-
-			// header information
-			Object[] columnsStr = sensorData.get(0);
-
-			// to create json object
-			List<Map<String, String>> jsonColumns =
-					new ArrayList<Map<String, String>>();
-			// to remember column names
-			List<String> columnNames = new ArrayList<String>();
-			// to remember column types
-			List<String> columnTypes = new ArrayList<String>();
-
-			for (String columnStr : columnsStr) {
-				Map<String, String> column =
-						new HashMap<String, String>();
-				if (columnStr.contains(";")) {
-					String[] parts = columnStr.split(";");
-					column.put("name", parts[0]);
-					column.put("type", parts[1]);
-					// save column name and type
-					columnNames.add(parts[0]);
-					columnTypes.add(parts[1]);
-				} else {
-					column.put("name", columnStr);
-					columnNames.add(columnStr);
-				}
-				jsonColumns.add(column);
-			}
-
-			// to create json object
-			List<Map<String, Object>> jsonData =
-					new ArrayList<Map<String, Object>>();
-
-			System.out.println("ROWS: " + sensorData.size());
-
-			List<?> jsonRowOuter =
-					new ArrayList<?>();
-
-			// let's iterate over the actual data
-			for (int i = 1; i < sensorData.size(); i++) {
-				Object[] row = sensorData.get(i);
-
-				Map<String, Object> jsonValue =
-						new HashMap<String, Object>();
-
-				List<Map<String, Object>> jsonRow =
-						new ArrayList<Map<String, Object>>();
-
-				for (int j = 0; j < row.length; j++) {
-
-					Map<String, Object> jsonItem =
-							new HashMap<String, Object>();
-
-					// find the column type
-					String name = columnNames.get(j);
-					jsonItem.put("column", name);
-					Object value = row[j];
-					jsonItem.put("value", value);
-
-					jsonRow.add(jsonItem);
-				}
-
-				jsonRowOuter.add(jsonRow);
-			}
-
-			def json = [
-						columns : jsonColumns,
-						data : jsonRowOuter
-					]
-
-			return json;
-		}
-
-		return [];
-	}
+//	private def createJson(List<Object[]> sensorData) {
+//
+//		if (sensorData.size() > 0) {
+//
+//			// header information
+//			Object[] columnsStr = sensorData.get(0);
+//
+//			// to create json object
+//			List<Map<String, String>> jsonColumns =
+//					new ArrayList<Map<String, String>>();
+//			// to remember column names
+//			List<String> columnNames = new ArrayList<String>();
+//			// to remember column types
+//			List<String> columnTypes = new ArrayList<String>();
+//
+//			for (String columnStr : columnsStr) {
+//				Map<String, String> column =
+//						new HashMap<String, String>();
+//				if (columnStr.contains(";")) {
+//					String[] parts = columnStr.split(";");
+//					column.put("name", parts[0]);
+//					column.put("type", parts[1]);
+//					// save column name and type
+//					columnNames.add(parts[0]);
+//					columnTypes.add(parts[1]);
+//				} else {
+//					column.put("name", columnStr);
+//					columnNames.add(columnStr);
+//				}
+//				jsonColumns.add(column);
+//			}
+//
+//			// to create json object
+//			List<Map<String, Object>> jsonData =
+//					new ArrayList<Map<String, Object>>();
+//
+//			System.out.println("ROWS: " + sensorData.size());
+//
+//			List<?> jsonRowOuter =
+//					new ArrayList<?>();
+//
+//			// let's iterate over the actual data
+//			for (int i = 1; i < sensorData.size(); i++) {
+//				Object[] row = sensorData.get(i);
+//
+//				Map<String, Object> jsonValue =
+//						new HashMap<String, Object>();
+//
+//				List<Map<String, Object>> jsonRow =
+//						new ArrayList<Map<String, Object>>();
+//
+//				for (int j = 0; j < row.length; j++) {
+//
+//					Map<String, Object> jsonItem =
+//							new HashMap<String, Object>();
+//
+//					// find the column type
+//					String name = columnNames.get(j);
+//					jsonItem.put("column", name);
+//					Object value = row[j];
+//					jsonItem.put("value", value);
+//
+//					jsonRow.add(jsonItem);
+//				}
+//
+//				jsonRowOuter.add(jsonRow);
+//			}
+//
+//			def json = [
+//						columns : jsonColumns,
+//						data : jsonRowOuter
+//					]
+//
+//			return json;
+//		}
+//
+//		return [];
+//	}
 
 	/**
 	 * Counts the offerings with the given observed property for the given service
@@ -706,12 +621,9 @@ class RulesService {
 	 * @param property
 	 * @return
 	 */
-	public int countOfferingsWithObservedProperty(int serviceId, String property) {
-		
-		OfferingPropertiesDao dao = new OfferingPropertiesDao(jdbcTemplate);
-		return dao.countOfferingsWithObservedProperty(serviceId, property);
-	}
-	
-	
-
+//	public int countOfferingsWithObservedProperty(int serviceId, String property) {
+//		
+//		OfferingPropertiesDao dao = new OfferingPropertiesDao(jdbcTemplate);
+//		return dao.countOfferingsWithObservedProperty(serviceId, property);
+//	}
 }

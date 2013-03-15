@@ -1,124 +1,227 @@
 <!doctype html>
 <html>
   <head>
-    <meta name="layout" content="main" />
-    <title>Alerts</title>
+    <meta name="layout" content="main"/>
+    <title>Alert</title>
+    
+    <link rel="stylesheet" media="screen" href="${resource(dir: 'rickshaw/', file: 'rickshaw.min.css' )}">
 
+    <link rel="stylesheet" media="screen" href="${resource(dir: 'css/ui-lightness/', file: 'jquery-ui-1.9.1.custom.min.css' )}">
 
-    <script type="text/javascript" charset="utf-8">
+    <link rel="stylesheet" media="screen" type="text/css"
+	  href="${resource(dir: 'css/', file: 'legend.css')}">
+
+    <script src="${resource(dir: 'js/', file: 'jquery-ui-1.9.1.custom.min.js')}" type="text/javascript"></script>
+
+    <script src="${resource(dir: 'js/', file: 'd3.v2.min.js')}" type="text/javascript"></script>
+    <script src="${resource(dir: 'rickshaw/', file: 'rickshaw.min.js')}" type="text/javascript"></script>
+
+    <style type="text/css">
+    
+      #slider {
+	margin-top: 10px;
+      }
+
+      #legend {
+        display: inline-block;
+        vertical-align: top;
+        margin: 0 0 0 10px;
+      }
+
+    .rickshaw_graph .detail .x_label { display: none }
+
+    </style>
+		
+    <script type="text/javascript">
       <!--
 
-	  $(document).ready(function() {
+	  var series = new Array(); 
 
-		$("ul.clickables").each(function() {
-			$(this).find("li").click(function() {
-				var link = $(this).find("a");
-				if (link.length > 0)
-					window.location = link[0]
-			});
-		});
+	  $(document).ready(function () {
+
+	      $("#btn-preview").click(function() {
+		  fetchData();
+	      });
+
+	      // automatically try and fetch the data 
+	      fetchData();
+	      
 	  });
 
-	-->
+          function fetchData() {
+	      // hide button 
+	      $("#p-btn-preview").hide();
+	      // show progress bar
+	      $("#p-progress").show();
+	      $.getJSON('${createLink(controller: "alert", action: "sensorData")}', 
+		  	{
+		  	    alert_id : ${id}
+		  	}, 
+		  	function (data) {
+			    // hide progress bar
+			    $("#p-progress").hide();
+			    if (data.status == "OK") {
+				// success: generate data
+				generateGraph(data.data); 
+		  	    } else if (data.status == "KO") {
+				// failure: show error message 
+				var div = '<div class="alert alert-error">' + 
+				    '<strong>Error</strong> ' + 
+				    'There was an error fetching the sensor data from the server, it might no longer be available.' + 
+				    '</div>';
+				$("#holder-data-error").append(div);
+				// remove chart container 'div'
+				$("#chart_container").remove();
+		  	    } 
+		  	}
+		       );
+	  }
+
+          var map = {}; 
+          var counter = 0;
+
+          function generateGraph(json) {
+
+	      var data = new Array();
+	      for (var i in json) {
+		  // convert milliseconds to Epoch time (seconds) 
+		  var time = json[i] / 1000;
+		  data.push({ "x" : time, "y": 1 }); 
+	      }
+
+	      var graph = new Rickshaw.Graph( {
+		  element: document.querySelector("#chart"),
+		  width: 720,
+		  height: 80, 
+		  renderer: 'bar',
+		  interpolation: 'linear',  
+		  series: [ {
+		      color: '#b1dcfe',
+		      data: data, 
+		      name: 'Available sensor data reading'
+		  } ]
+	      } );
+	      graph.render();
+
+	      var hoverDetail = new Rickshaw.Graph.HoverDetail( {
+	       	  graph: graph,
+		  formatter: function(series, x, y) {
+		      var date = '<span class="date">' + new Date(x * 1000).toUTCString() + '</span>';
+		      //var swatch = '<span class="detail_swatch" style="background-color: ' + series.color + '"></span>';
+		      //var content = swatch + series.name + ": " + parseInt(y) + '<br>' + date;
+		      var content = date;
+		      return content;
+		  }
+	      } );
+
+	      var legend = new Rickshaw.Graph.Legend( {
+		  graph: graph,
+		  element: document.getElementById("legend"),
+	      } );
+	      
+	      var slider = new Rickshaw.Graph.RangeSlider( {
+		  graph: graph,
+		  element: $('#slider')
+	      } );
+
+	      var xAxis = new Rickshaw.Graph.Axis.Time( {
+		  graph: graph, 
+	      } );
+	  }
+
+          function getTimeColumn(columns) {
+	      for (var i = 0; i < columns.length; i++) {
+		  if (columns[i]['type'] == 'TIMESTAMP')
+		      return columns[i]['name']; 
+	      }
+	      return null;
+	  }
+
+          function getValueColumns(columns) {
+	      var cols = new Array(); 
+	      for (var i = 0; i < columns.length; i++) {
+		  if (columns[i]['type'] == 'DOUBLE')
+		      cols.push(columns[i]['name']); 
+	      }
+	      return cols;
+	  }
+
+     -->
     </script>
-
-
   </head>
   <body>
-    
-    <p class="lead">
-      Alerts
-    </p>
-    
-    <div class="row">
-      <div class="span3">
-        
-        <div class="side-bar">
-          
-          <ul class="nav nav-list">
-	    <%-- list groups --%>
-	    <g:if test="${groups}">
-              <li class="nav-header">Community Groups</li>
-	      <g:each in="${groups}" var="group">
-		<li class="<g:if test='${group.id == id}'>active</g:if>">
-		  <g:link 
-		     controller="alert" action="view" id="${group.id}">${group.name}</g:link>
-		</li>
-	      </g:each>
-	    </g:if>
-          </ul>
-          
-        </div>
-	
-      </div>
-      <div class="span9">
-	
-	<g:if test="${groups}">
-	  <g:if test="${group}">
-	  
-	    <p class="lead">
-	      <g:link title="Alert feed" controller="community" 
-		      action="feed" id="${group.id}"><g:img dir="images" file="rss.png" class="pull-right" /></g:link>
-	      <g:link title="Report" controller="alert" 
-		      action="report" id="${group.id}"><g:img dir="images" file="document.png" class="pull-right" style="padding: 0px 10px;" /></g:link>
-	      ${group.name} 
-	    </p>
-	    
-	    <%-- only show pagination controls if needed --%> 
-	    <g:if test="${paginator.needed()}">
-	      <div class="pagination">
-		<ul>
-		  <li <g:if test="${paginator.isFirstPage()}">class='disabled'</g:if>>
-		    <g:link action='view' id='${id}' params='[page: "${paginator.prevPage()}"]'>Prev</g:link>
-		  </li>
-		  <li class="active">
-		    <g:link 
-		       action='view' id='${id}'
-		       params='[page: "${paginator.nextPage()}"]'>${paginator.curPage}/${paginator.numPages}</g:link>
-		  </li>
-		  <li <g:if test="${paginator.isLastPage()}">class='disabled'</g:if>>
-		    <g:link 
-		       action='view' id='${id}' 
-		       params='[page: "${paginator.nextPage()}"]'>Next</g:link>
-		  </li>
-		</ul>
-	      </div>
-	    </g:if>
-	    
-	    <g:if test="${paginator.count() > 0}">
-	      <ul class="alerts clickables">
-		<g:set var="counter" value="${0}" />
-		<g:each var="alert" in="${paginator.objects()}">
-		  
-		  <li>
-		    <img src="${resource(dir: 'images/', file: 'exclamation.png') }" />
-		    <strong>${alert.getTypePretty()}</strong>
-		    <br />
-		    At sensor offering ${alert.offering}, 
-		    recorded:  
-		    <g:formatDate format="yyyy-MM-dd kk:mm" date="${alert.timestamp}"/>
-		    (<a href="/communityhub/alert/id/${alert.id}/">details</a>)
-		  </li>
-		  <g:set var="counter" value="${counter + 1}" />
-		</g:each>
-	      </ul>
-	    </g:if>
-	    <g:else>
-	      <p><i>No alerts were found in this group.</i></p>
-	    </g:else>
-	  </g:if>
-	  <g:else>
-	    <em>No group (or an incorrect group) has been selected</em>
-	  </g:else>
-	</g:if>
-	<g:else>
-	  <em>There are no groups, and no alerts, yet.</em>
-	</g:else>
-	
-      </div>
-    </div>
 
+    <p class="lead">${alert.getTypePretty()}</p>
+
+    <g:if test="${alert.type == 'ALERT_SERVICE_DOWN'}">
+	
+      <div class="alert alert-block">
+	<h4>
+	  Alert generated 
+	  <g:formatDate format="yyyy-MM-dd HH:mm:ss" date="${alert.dateCreated}" />
+	</h4>
+      </div>
+      
+	<p>
+	  This alert indicates that the service
+	  <g:link controller="service" action="view"
+		  id="${alert.service.id}"><strong>${alert.service.title}</strong></g:link>
+	  was considered down and its Capabilities document could
+	  not be retrieved.
+	</p>
+
+    </g:if>
+
+    <g:elseif test="${alert.type == 'ALERT_IRREGULAR_DATA_DELIVERY'}">
+
+      <div class="alert alert-block">
+	<h4>Alert generated ${alert.dateCreated}</h4>
+      </div>
+
+      <p>
+	This alert indicates that sensor data from the sensor
+	offering <strong>${alert.offering}</strong> was delivered at
+	irregular itervals.
+	
+	The offering belongs to the service 
+	<g:link controller="service"
+		action="view"
+		id="${alert.service.id}"><strong>${alert.service.title}</strong></g:link>. 
+	The sensor data was retrieved using the observed property
+	<strong>${alert.observedProperty}</strong>.
+      </p>
+
+      <g:if test="${alert.validFrom && alert.validTo}">
+	<p>
+	  Alert covers sensor data between 
+	  <strong>${alert.validFrom}</strong> &ndash; <strong>${alert.validTo}</strong>
+	</p>
+      </g:if>
+
+      <div id="p-progress" style="display: none;">
+	<p>
+	  Fetching sensor data...
+	  <div class="progress progress-striped active">
+	    <div class="bar" style="width: 100%;"></div>
+	  </div>
+	</p>
+      </div>
+
+      <p>
+	<div id="holder-data-error"></div>
+	<div id="chart_container">
+	  <div id="chart"></div>
+	  <div id="legend_container">
+	    <div id="legend"></div>
+	  </div>
+	  <div id="slider"></div>
+	</div>
+      </p>
+	
+    </g:elseif>
+
+    <p class="lead">Details</p>
+    <p>${alert.detail}</p>
+      
   </body>
 </html>
-
-

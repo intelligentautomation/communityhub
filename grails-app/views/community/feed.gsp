@@ -9,12 +9,12 @@
 
   <g:each var="alert" in="${alerts}">
     <entry>
-      <title>${alert.getTypePretty()}<g:ifAlert rule="${alert}" type="service"> (<g:getServiceUrl rule="${alert}" />)</g:ifAlert><g:ifAlert rule="${alert}" type="irregular"> (${alert.offering})</g:ifAlert></title>
+      <title>${alert.getTypePretty()}<g:ifAlert rule="${alert}" type="service"> (${alert.service.endpoint})</g:ifAlert><g:ifAlert rule="${alert}" type="irregular"> (${alert.offering})</g:ifAlert></title>
       <link href="${createLink(absolute: true, controller: 'alert', action: 'id', params: [id: alert.id])}" />
       <id>${createLink(absolute: true, controller: 'alert', action: 'id', params: [id: alert.id])}</id>
-      <published><g:formatDate date="${alert.timestamp}" format="yyyy-MM-dd HH:mm:ssZ" /></published>
+      <published><g:formatDate date="${alert.dateCreated}" format="yyyy-MM-dd HH:mm:ssZ" /></published>
       <%-- RSS format for javaxt-rss library --%>
-      <pubDate><g:formatDate date="${alert.timestamp}" format="yyyy-MM-dd HH:mm:ssZ" /></pubDate>
+      <pubDate><g:formatDate date="${alert.dateCreated}" format="yyyy-MM-dd HH:mm:ssZ" /></pubDate>
       <summary>${alert.detail}</summary>
       <author>
           <name>Community Hub</name>

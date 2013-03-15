@@ -8,156 +8,160 @@ package communityhub
 import grails.converters.JSON
 import grails.plugins.springsecurity.Secured
 
-import org.springframework.dao.DataAccessException
+import java.text.DateFormat
+import java.text.ParseException
+import java.text.SimpleDateFormat
 
-import com.iai.communityhub.AlertType
-import com.iai.communityhub.dao.AlertDao
-import com.iai.communityhub.dao.CapabilitiesCacheDao
-import com.iai.communityhub.dao.GroupDao
-import com.iai.communityhub.dao.GroupsRulesXrefDao
-import com.iai.communityhub.dao.OfferingPropertiesDao
-import com.iai.communityhub.dao.RuleDao
-import com.iai.communityhub.dao.ServiceDao
-import com.iai.communityhub.model.Alert
-import com.iai.communityhub.model.CapabilitiesCache
-import com.iai.communityhub.model.Group
-import com.iai.communityhub.model.GroupsRulesXref
-import com.iai.communityhub.model.Rule
-import com.iai.communityhub.model.Service
+import javax.validation.GroupSequence;
+
 import com.iai.proteus.common.sos.GetCapabilities
 import com.iai.proteus.common.sos.model.SensorOffering
 import com.iai.proteus.common.sos.model.SosCapabilities
 import com.iai.proteus.common.sos.util.SosUtil
-import communityhub.security.SecUser;
+import communityhub.security.SecUser
 
-
+/**
+ * Controller for Community Groups
+ * 
+ * @author Jakob Henriksson 
+ *
+ */
 class CommunityController {
-
+	
+	static allowedMethods = [ 
+		index: 'GET', 
+		list: 'GET', 
+		create: 'GET', 
+		view: 'GET', 
+		feed: 'GET', 
+		report: 'GET',
+		edit: 'GET', 
+		config: 'GET',
+		add: 'GET',   
+		save: 'POST', 
+		update: 'POST', 
+		delete: 'POST', 
+		createRule: 'POST', 
+		removeRule: 'POST',  
+		
+		ajaxOfferings: 'GET', 
+		ajaxProperties: 'GET', 
+		ajaxOfferingsWithSameProperty: 'GET', 
+		ajaxCheckSupportedFormats: 'GET',
+		
+		ajaxExecuteServiceDownRules: 'POST', 
+		ajaxExecuteIrregularDataDeliveryRules: 'POST', 
+	]	
+	
+	DateFormat formatYear = new SimpleDateFormat("yyyy")
+	DateFormat formatMonth = new SimpleDateFormat("MMM")
+	
 	def rulesService
 	
-	def jdbcTemplate 
 	def springSecurityService
 	
-	grails.gsp.PageRenderer groovyPageRenderer
-	
-
 	/**
+	 * Index 
 	 * 
-	 * @param id
 	 * @return
 	 */
-	def index(int id) {
-
-		GroupDao daoGroup = new GroupDao(jdbcTemplate);
-		Collection<Group> groups = daoGroup.findAll();
-		
-		// if no group is selected, but there are groups, select the first one
-		// by default 
-		if (id == 0 && groups != null && groups.size() > 0) {
-			id = ((Group)groups.iterator().next()).getId();
-		}
-		
-		if (id > 0) {
-			
-			try {
-				
-				// fetch the current group 
-				Group group = daoGroup.findUniqueObjectById("" + id);
-					
-				AlertDao daoAlert = new AlertDao(jdbcTemplate);
-				Collection<Alert> alerts = daoAlert.findAlertsForGroup(id, 3, 0);
-				
-				return [ id: id, groups: groups, group: group, alerts : alerts ] 
-				 
-			} catch (DataAccessException e) {
-				log.error("Data access exception: " + e.getMessage()); 
-				response.sendError(500);
-				return;
-			}
-
-		}
-		
-		return [ id: id, groups : groups]
+	def index() {
+		redirect(action: 'list', params: params)
 	}
 	
 	/**
-	 * Shows rules for various community groups 
-	 *
-	 * @param id
+	 * List all services 
+	 * 
 	 * @return
 	 */
-	def rules(int id) {
-
-		GroupDao daoGroup = new GroupDao(jdbcTemplate);
-		Collection<Group> groups = daoGroup.findAll();
-		
-		// if no group is selected, but there are groups, select the first one
-		// by default
-		if (id == 0 && groups != null && groups.size() > 0) {
-			id = ((Group)groups.iterator().next()).getId();
-		}
-		
-		if (id > 0) {
-			
-			try {
-				
-				// fetch the current group
-				Group group = daoGroup.findUniqueObjectById("" + id);
-					
-				RuleDao daoRule = new RuleDao(jdbcTemplate);
-				Collection<Rule> rules = daoRule.findRulesForGroup(id);
-				
-				return [ id: id, groups: groups, group: group,
-						rules: rules]
-				 
-			} catch (DataAccessException e) {
-				log.error("Data access exception: " + e.getMessage());
-				response.sendError(500);
-				return;
-			}
-
-		}
-		
-		return [ id: id, groups : groups]
-	}
+	def list() {
+		// find all active community groups
+		def groups = Group.activeGroups.list(params)
+		[ groups : groups ]
+	}	
 	
 	/**
-	 * Create a new group
+	 * Displays page to create a new group
 	 * 
 	 * @return
 	 */
 	@Secured(['ROLE_ADMIN', 'ROLE_USER'])
 	def create() {
 		
-		if (request.method == "POST") {
-			
-			// get the parameters 
-			def name = params.inputName;
-			def description = params.inputDescription;
-
-			if (name.trim().equals("")) {
-				def error = "The group must have a non-empty name, please try again";
-				return [name : name, description : description, error : error] 
-			}
-			
-			if (description != null && description.trim().equals(""))
-				description = null;
-			
-			Group group = new Group();
-			group.setName(name);
-			group.setDescription(description);
-			// set user and administrator
-			def user = SecUser.get(springSecurityService.principal.id)
-			group.setCreatedBy(user.username);
-			group.setAdmin(user.username);
-			
-			GroupDao dao = new GroupDao(jdbcTemplate);
-			dao.insert(group);
+	}
 	
-			def success = "The group was successfully created";
-			return [name : name, description : description, success : success ];
+	/**
+	 * Save a group 
+	 * 
+	 * @return
+	 */
+	@Secured(['ROLE_ADMIN', 'ROLE_USER'])
+	def save() {
+		
+		// get the parameters 
+		def name = params.inputName
+		def description = params.inputDescription
+		
+		def errorCode = null
+
+		// check for errors
+		if (name.trim().equals("")) 
+			errorCode = "default.communityhub.group.error.empty"
+
+		if (description != null && description.trim().equals(""))
+			description = null
+
+		// return with error if needed
+		if (errorCode != null) {
+			// set error message
+			flash.error = errorCode
+			// direct 
+			redirect(action: 'create', params: 
+				[name : name, description: description])
+			return			
 		}
 		
+		// create group 	
+		def group = new Group()
+		group.name = name
+		group.description = description
+		// set user and administrator
+		def user = SecUser.get(springSecurityService.principal.id)
+		group.createdBy = user
+		group.admin = user
+		group.save(flush: true)
+
+		// set message
+		flash.message = "default.communityhub.group.success.created"
+		// re-direct 		
+		redirect(action: 'view', id: group.id)
+	}
+	
+	/**
+	 * View a community group 
+	 * 
+	 * @param id
+	 * @return
+	 */
+	def view(int id) {
+		
+		if (id > 0) {
+			def group = Group.get(id)
+			if (group) {
+
+				// get alerts for the group  
+				def alerts = Alert.createCriteria().list(params) {
+					groups {
+						eq('id', group.id)
+					}
+				}
+				
+				return [ group : group, alerts : alerts ]
+			}
+		}
+		
+		// error 		
+		response.sendError(404)
 	}
 	
 	/**
@@ -166,377 +170,173 @@ class CommunityController {
 	 * @param id Group id 
 	 * @return
 	 */
+	@Secured(['ROLE_ADMIN', 'ROLE_USER'])
 	def edit(int id) {
-		
-		if (request.method == "POST") {
-
-			// get the service parameter and make sure it's an integer
-			def name = params.inputName;
-			// get the service parameter and make sure it's an integer
-			def description = params.inputDescription;
-			
-			GroupDao dao = new GroupDao(jdbcTemplate);
-			try {
-				
-				// get and update record  
-				Group group = dao.findUniqueObjectById("" + id);
-				group.setName(name);
-				group.setDescription(description);
-				dao.update(group);
-				
-				def success = "Group updated";
-				return [ id : id, group : group, success : success ];
-				
-			} catch (DataAccessException e) {
-				log.error("Data access exception: " + e.getMessage());
-			}
-			
-			def error = "A failure occurred";
-			return [ id : id, error : error ];
-		}
-		
 		if (id > 0) {
-			GroupDao dao = new GroupDao(jdbcTemplate);
-			try {
+			def group = Group.get(id)
+			if (group) {
+				// check that the user is the administrator 
+				def user = SecUser.get(springSecurityService.principal.id)
+				// the user is the administrator
+				if (user.equals(group.admin))
+					return [ group : group ]
 				
-				Group group = dao.findUniqueObjectById("" + id);
-				
-				return [ id : id, group : group];
-				
-			} catch (DataAccessException e) {
-				log.error("Data access exception: " + e.getMessage());
+				// set message
+				flash.error = "default.communityhub.group.error.edit"
+				// re-direct
+				redirect(action: "view", id : id)
+				return
 			}
 		}
 		
-		return response.sendError(404);
+		// error 		
+		response.sendError(404)
 	}
 	
 	/**
-	 * View for adding rules to a group
+	 * Update a group
+	 * 
+	 * @param id
+	 * @return
+	 */
+	def update(int id) {
+		
+		if (id > 0) {
+			
+			def group = Group.get(id)
+			if (group) {
+			
+				// get the service parameter and make sure it's an integer
+				def name = params.inputName
+				// get the service parameter and make sure it's an integer
+				def description = params.inputDescription
+				
+				// update information 
+				group.name = name
+				group.description = description
+				// save
+				group.save()
+				
+				flash.message = "default.communityhub.group.success.updated"
+				// re-direct
+				redirect(action: 'view', id: group.id) 
+				return
+			}
+		}
+		
+		// error
+		response.sendError(404)
+	}
+	
+	/**
+	 * Deletes a new group (marks it as inactive) 
+	 * 
+	 * @param id Group id 
+	 * @return
+	 */
+	@Secured(['ROLE_ADMIN', 'ROLE_USER'])
+	def delete(int id) {
+		if (id > 0) {
+			def group = Group.get(id)
+			if (group) {
+				// check that the user is the administrator
+				def user = SecUser.get(springSecurityService.principal.id)
+				// the user is the administrator 
+				if (user.equals(group.admin)) {
+					// update flag
+					group.active = false
+					// save
+					group.save()
+					// set message
+					flash.message = "default.communityhub.group.success.deleted"
+					// re-direct to home 
+					redirect(action: 'list')
+					return
+				}
+				
+				// set error message
+				flash.error = "default.communityhub.group.error.delete"
+				// re-direct to home 
+				redirect(action: 'list')
+				return
+			}
+		}
+		// general error 
+		flash.error = "default.communityhub.error.unknown"
+		// re-direct to home
+		redirect(action: 'list') 		
+	}	
+	
+	/**
+	 * Displays the main configuration page for group, where users 
+	 * (administrators) can add/remove rules for community groups 
 	 *
 	 * @param id
 	 * @return
 	 */
-	def add(int id) {
-
-		// get the service parameter (an integer)
-		def serviceId = params.int('service');
-
-		ServiceDao dao = new ServiceDao(jdbcTemplate);
-		Collection<Service> services = dao.findAll();
+	@Secured(['ROLE_ADMIN', 'ROLE_USER'])
+	def config(int id) {
 
 		if (id > 0) {
 			
-			GroupDao daoGroup = new GroupDao(jdbcTemplate);
-			try {
-				
-				Group group = daoGroup.findUniqueObjectById("" + id)
-				return [ services : services, group : group, serviceId : serviceId ]
-				
-			} catch (DataAccessException e) {
-				log.error("Data access exception: " + e.getMessage());
-			}
-		}
-
-		return response.sendError(404);
-	}
-	
-	/**
-	 * For creating a rule
-	 *
-	 * @return
-	 */
-	def ajaxCreateRule() {
-
-		def json = request.JSON;
-
-		// get the service parameter and make sure it's an integer
-		def groupId = json.group;
-
-		Group group = new Group();
-		group.setId(groupId);
-			
-		def details = json.details;
-		
-		println "Group Id: " + groupId;
-
-		// handle according to service type
-		switch (json.type) {
-
-			case "service":
-
-				def serviceId = details.serviceId;
-							
-				if (serviceId != null) {
-					println "Service Id: " + serviceId;
-					 
-					// get or create the rule
-					Rule rule = rulesService.getServiceDownRule(serviceId);
-					
-					// associate the rule with the group
-					GroupsRulesXrefDao daoXref =
-						new GroupsRulesXrefDao(jdbcTemplate);
-					daoXref.insert group, rule;
+			def group = Group.get(id)
+			if (group) {
+				// check that the user is the administrator
+				def user = SecUser.get(springSecurityService.principal.id)
+				// the user is the administrator 
+				if (user.equals(group.admin)) {
+					// get the rules of this group
+					def rules = group.rules
+					return [ group: group, rules: rules ]
 				}
-			
-				break;
-				
-			case "irregular":
-			
-				def serviceId = details.serviceId;
-				def offering = details.offering;
-				def property = details.property;
-				
-				def options = details.options;
-				
-				if (serviceId != null && offering != null && property != null) {
-					
-					// get or create the rule
-					Rule rule =
-						rulesService.getIrregularDataDeliveryRule(serviceId,
-							offering, property, options);
-						
-//					System.out.println("RULE ID: " + rule.getId());
 
-					// associate the rule with the group
-					GroupsRulesXrefDao daoXref =
-						new GroupsRulesXrefDao(jdbcTemplate);
-					daoXref.insert group, rule;
-				}
-			
-				break;
-
-		}
-		
-		([ status : "OK" ] as JSON).render response
-	}
-	
-	/**
-	 * Executes all 'service down' rules
-	 *
-	 * @return
-	 */
-	def ajaxExecuteServiceDownRules() {
-		
-		RuleDao daoRule = new RuleDao(jdbcTemplate);
-		Collection<Rule> rules = daoRule.findServiceDownRules();
-
-		// execute the rules in the background
-		runAsync {
-			rulesService.executeAllRules(rules);
-		}
-		
-		def json = [ status : "OK", noRules : rules.size() ];
-		render json as JSON;
-	}
-	
-	/**
-	 * Executes all 'irregular data delivery' rules
-	 *
-	 * @return
-	 */
-	def ajaxExecuteIrregularDataDeliveryRules() {
-		
-		RuleDao daoRule = new RuleDao(jdbcTemplate);
-		Collection<Rule> rules = daoRule.findIrregularDataDeliveryRules();
-		
-		// execute the rules in the background
-		runAsync {
-			rulesService.executeAllRules(rules);
-		}
-		
-		def json = [ status : "OK", noRules : rules.size() ];
-		render json as JSON;
-	}
-
-
-	/**
-	 * Renders a template with a list of sensor offerings
-	 *
-	 */
-	def ajaxOfferings() {
-
-		// get the service parameter (an integer)
-		def serviceId = params.int('service_id');
-
-		OfferingPropertiesDao dao = new OfferingPropertiesDao(jdbcTemplate);
-		Collection<String> offerings =
-			dao.findDistinctActiveOfferings(serviceId);
-
-		// render the view with the specified model
-		render(view : "/community/t_ajax_offerings",
-				model: [ offerings : offerings ] );
-	}
-
-	/**
-	 * Renders a template with a list of observed properties
-	 *
-	 * @return
-	 */
-	def ajaxProperties() {
-
-		// get the service parameter (an integer)
-		def serviceId = params.int('service_id');
-		// get the offering parameter
-		def offeringId = params.offering_id;
-
-		OfferingPropertiesDao dao = new OfferingPropertiesDao(jdbcTemplate);
-		Collection<String> properties =
-				dao.findActiveObservedProperties(serviceId, offeringId);
-				
-		// render the view with the specified model
-		render(view : "/community/t_ajax_properties",
-				model: [ properties : properties ] );
-	}
-	
-	/**
-	 * Returns JSON with the number of offerings that contain the given
-	 * observed property for the given service
-	 *
-	 * @return
-	 */
-	def ajaxOfferingsWithSameProperty() {
-
-		// get the service parameter (an integer)
-		def serviceId = params.int('service_id');
-		// get the observed property
-		def property = params.observed_property;
-
-		int num =
-			rulesService.countOfferingsWithObservedProperty(serviceId, property);
-		
-		def json = [ "status" : "OK", "number" : num ];
-		
-		render json as JSON
-	}
-
-	/**
-	 * Returns JSON with information regarding if we support the data formats
-	 * served up by the given sensor offering  
-	 * 
-	 * @return
-	 */
-	def ajaxCheckSupportedFormats() {
-		
-		// get the service parameter (an integer)
-		def serviceId = params.int('service_id');
-		// get the offering parameter
-		def offeringId = params.offering_id;
-		
-		CapabilitiesCacheDao daoCache =	new CapabilitiesCacheDao(jdbcTemplate);
-		try {
-			
-			CapabilitiesCache cache = daoCache.findForServiceId(serviceId);
-			SosCapabilities caps =
-				GetCapabilities.parseCapabilitiesDocument(cache.getCapabilities());
-
-			SensorOffering sensorOffering = caps.getOfferingById(offeringId);
-			List<String> commonFormats = 
-				SosUtil.commonResponseFormats(sensorOffering);
-				
-			if (commonFormats.size() > 0) {
-				([ status : "OK" ] as JSON).render response
+				// set error message
+				flash.error = "default.communityhub.group.error.config"
+				// re-direct
+				redirect(action: "view", id: id)
 				return
 			}
-			
-		} catch (DataAccessException e) {
-			log.error("Data access exception: " + e.getMessage());
 		}
 		
-		([ status : "KO" ] as JSON).render response
-	}
+		// error
+		response.sendError(404)
+	}	
 	
 	/**
-	 * Removes a rule from a group
+	 * Displays page for adding rules to a group
 	 *
+	 * @param id
 	 * @return
 	 */
-	def ajaxRemoveRule() {
-		
-		// get the group parameter (an integer)
-		def groupId = params.int('group_id');
-		if (!groupId) {
-			log.error("Error reading 'group_id' parameter");
-			([ status : "KO" ] as JSON).render response
-			return;
-		}
+	@Secured(['ROLE_ADMIN', 'ROLE_USER'])
+	def add(int id) {
 
-		// get the rule parameter (an integer)
-		def ruleId = params.int('rule_id');
-		if (!ruleId) {
-			log.error("Error reading 'ruleId' parameter");
-			([ status : "KO" ] as JSON).render response
-			return;
-		}
+		// get the service parameter (an integer)
+		def serviceId = params.int('service')
 
-		RuleDao ruleDao = new RuleDao(jdbcTemplate);
-		
-		try {
+		if (id > 0) {
 			
-			Rule rule = ruleDao.findUniqueObjectById("" + ruleId);
-			// do we need to remove the rule itself?
-			switch (rule.getType()) {
-				case AlertType.ALERT_SERVICE_DOWN.toString():
-					// do nothing
-					break;
-				case AlertType.ALERT_IRREGULAR_DATA_DELIVERY.toString():
-					// do nothing
-					break;
-				case AlertType.ALERT_USER_TEMPLATE.toString():
-					// TODO: maybe do something
-					break;
-			}
-
-			// remove the reference between the group and the rule
-			GroupsRulesXref xref = new GroupsRulesXref();
-			xref.setGroup(groupId);
-			xref.setRule(ruleId);
-			GroupsRulesXrefDao daoXref = new GroupsRulesXrefDao(jdbcTemplate);
-			daoXref.remove(xref);
-			log.info("Removed Group-Rule reference");
-			
-			// return success
-			([ status : "OK" ] as JSON).render response
-			return;
-			
-		} catch (DataAccessException e) {
-			log.error("Data access exception: " + e.getMessage());
-		}
-		
-		// something went wrong
-		([ status : "KO" ] as JSON).render response
-		return;
-	}
-	
-	
-	/**
-	 * Deletes a community group
-	 * 
-	 * (Actually, does not delete, but makes it inactive) 	
-	 */
-	def ajaxDeleteGroup(int id) {
-
-		if (request.method == "POST") {
-				 
-			try {
+			def group = Group.get(id)
+			if (group) {
+				// check that the user is the administrator
+				def user = SecUser.get(springSecurityService.principal.id)
+				// the user is the administrator 
+				if (user.equals(group.admin)) {
+					def services = Service.activeServices.list()
+					return [group : group, serviceId : serviceId, services : services]
+				}
 				
-				GroupDao daoGroup = new GroupDao(jdbcTemplate);
-				// find the group
-				Group group = daoGroup.findUniqueObjectById("" + id);
-				// delete the group
-				daoGroup.delete(group);
-				
-				([ status : "OK" ] as JSON).render response
-				return;
-				
-			} catch (DataAccessException e) {
-				log.error("Data access exception: " + e.getMessage());
+				// set error message
+				flash.error = "default.communityhub.group.error.config"
+				// re-direct
+				redirect(action: "view", id: id)
+				return
 			}
 		}
-		
-		// default 
-		([ status : "KO" ] as JSON).render response
-	}
+
+		// error 
+		return response.sendError(404)
+	}	
 	
 	/**
 	 * Generates an alerts feed for a group
@@ -547,21 +347,21 @@ class CommunityController {
 	def feed(int id) {
 		
 		if (id > 0) {
-			
-			GroupDao daoGroup = new GroupDao(jdbcTemplate);
-			Group group = daoGroup.findUniqueObjectById("" + id);
-			
-			AlertDao daoAlert = new AlertDao(jdbcTemplate);
-			Collection<Alert> alerts =
-				daoAlert.findAlertsForGroup(group.getId(), 50, 0);
+
+			def group = Group.get(id)
+			if (group) {
 				
-			return render(view: "/community/feed",
-				model: [group: group, alerts: alerts],
-				contentType: "application/atom+xml",
-				encoding: "UTF-8")
+				def alerts = Alert.forGroup(group).list(max: 50, 
+					sort: "dateCreated", order: "asc")
+				
+				return render(view: "/community/feed",
+					model: [group: group, alerts: alerts],
+					contentType: "application/atom+xml",
+					encoding: "UTF-8")
+			}			
 		}
 		
-		return response.sendError(404);
+		return response.sendError(404)
 	}
 	
 	/**
@@ -573,21 +373,433 @@ class CommunityController {
 	def rss(int id) {
 		
 		if (id > 0) {
-			
-			GroupDao daoGroup = new GroupDao(jdbcTemplate);
-			Group group = daoGroup.findUniqueObjectById("" + id);
-			
-			AlertDao daoAlert = new AlertDao(jdbcTemplate);
-			Collection<Alert> alerts =
-				daoAlert.findAlertsForGroup(group.getId(), 50, 0);
+
+			def group = Group.get(id)
+			if (group) {
 				
-			return render(view: "/community/rss",
-				model: [group: group, alerts: alerts],
-				contentType: "application/rss+xml",
-				encoding: "UTF-8")
+				def alerts = Alert.forGroup(group).list(max: 50, 
+					sort: "dateCreated", order: "asc")
+				
+				return render(view: "/community/rss",
+					model: [group: group, alerts: alerts],
+					contentType: "application/rss+xml",
+					encoding: "UTF-8")				
+			}			
 		}
 		
-		return response.sendError(404);
+		return response.sendError(404)		
+	}
+	
+	/**
+	 * Generates a report for a community group 
+	 * 
+	 * @param id
+	 * @return
+	 */
+	def report(int id) {
+		
+		if (id > 0) {
+			
+			boolean usingDefault = false
+			
+			def year = params.year
+			def month = params.month
+			
+			Calendar calendar = GregorianCalendar.getInstance()
+			// default, this month, reset values 
+			calendar.set(Calendar.DAY_OF_MONTH, 1)
+			calendar.set(Calendar.HOUR_OF_DAY, 0)
+			calendar.set(Calendar.MINUTE, 0)
+			calendar.set(Calendar.SECOND, 0)
+			
+			// parsing the year 
+			if (year != null) {
+				try {
+					Date date = formatYear.parse(year)
+					// set the calendar 
+					calendar.setTime(date)
+				} catch (ParseException e) {
+					usingDefault = true
+				}
+			}
+			
+			// parsing the month
+			if (month != null) {
+				try {
+					Date date = formatMonth.parse(month)
+					// set the calendar
+					Calendar c1 = Calendar.getInstance()
+					c1.setTime(date)
+					calendar.set(Calendar.MONTH, c1.get(Calendar.MONTH))
+				} catch (ParseException e) {
+					usingDefault = true
+					// it's bizarre that I have to do this
+					Date date = formatMonth.parse(formatMonth.format(new Date()))
+					Calendar c1 = Calendar.getInstance()
+					c1.setTime(date)
+					calendar.set(Calendar.MONTH, c1.get(Calendar.MONTH))
+				}
+			}
+
+			Date start = calendar.getTime()
+
+			// calculate next and previous months for browsing
+			calendar.add(Calendar.MONTH, -1)
+			Date datePrev = calendar.getTime()
+			calendar.add(Calendar.MONTH, 2)
+			Date dateNext = calendar.getTime()
+						
+			// used as end-date when querying for alerts  
+			Date end = dateNext.clone()
+			
+			def group = Group.get(id)
+			if (group) {
+
+				// get alerts from the group within the appropriate time frame
+				def alerts = Alert.createCriteria().list(params) {
+					groups {
+						eq('id', group.id)
+						between('dateCreated', start, end)
+					}
+				}				
+				
+				def mapAlerts = [:]
+				def mapServiceDown = [:]
+				def mapCountIrregularOfferings = [:]
+				
+				for (Alert alert : alerts) {
+					
+					int serviceId = alert.service.id
+					String offeringId = alert.getOffering()
+					
+					// alerts 
+					def l = mapAlerts.get(serviceId)
+					if (l) {
+						l.add(alert)
+					} else {
+						l = new ArrayList<Alert>()
+						l.add(alert)
+						mapAlerts.put(serviceId, l)
+					}
+					
+					// service down calculations 
+					if (alert.type.equals(AlertType.SERVICE_DOWN.toString())) {
+					    def d = mapServiceDown.get(serviceId)
+					    if (d != null) {
+							// add X minutes to count
+							mapServiceDown.put(serviceId, d + 5)
+					    } else {
+							// initialize ALERT_SERVICE_DOWN
+							mapServiceDown.put(serviceId, 5)
+					    }
+					}
+					
+					// count irregular data delivery offerings
+					if (alert.getType().equals(AlertType.IRREGULAR_DELIVERY.toString())) {
+					    def o = mapCountIrregularOfferings.get(offeringId)
+					    if (o != null) {
+							mapCountIrregularOfferings.put(offeringId, o + 1)
+					    } else {
+							// initialize ALERT_IRREGULAR_DATA_DELIVERY
+							mapCountIrregularOfferings.put(offeringId, 1)
+					    }
+					}
+					
+				}
+				
+				def sortDesc = { a, b -> b.value <=> a.value }
+				
+				return [ group : group, alerts : alerts, 
+						mapAlerts : mapAlerts, 
+						// sort: descending
+						mapServiceDown : mapServiceDown.sort(sortDesc),
+						// sort: descending
+						mapCountIrregularOfferings : mapCountIrregularOfferings.sort(sortDesc), 
+						date : start, datePrev : datePrev, dateNext : dateNext, 
+						usingDefault : usingDefault ]
+			}
+				
+			return []
+		}
+		
+		response.sendError(404)
+	}	
+	
+	
+	
+	/**
+	 * Creates a rule for a group 
+	 *
+	 * @return
+	 */
+	def createRule() {
+
+		def json = request.JSON
+		// get the service parameter and make sure it's an integer
+		def groupId = json.group
+		def details = json.details
+		
+		// get the group
+		def group = Group.get(groupId)
+
+		// handle according to service type
+		switch (json.type) {
+
+			case "service":
+
+				def serviceId = details.serviceId
+							
+				if (serviceId != null) {
+					
+					def service = Service.get(serviceId)
+					if (group && service) {
+						// get or create the rule
+						Rule rule = rulesService.getServiceDownRule(service)
+						println "Rule: " + rule
+						// associate the rule with the group
+						group.addToRules(rule).save()
+					}
+				}
+			
+				break
+				
+			case "irregular":
+			
+				def serviceId = details.serviceId
+				def offering = details.offering
+				def property = details.property
+				
+				def options = details.options
+				
+				if (serviceId != null && offering != null && property != null) {
+					
+					def service = Service.get(serviceId)
+					if (group && service) {
+						// get or create the rule
+						Rule rule =
+							rulesService.getIrregularDataDeliveryRule(service,
+								offering, property, options)
+							
+						// associate the rule with the group
+						group.rules.add(rule)
+						group.save()
+					}
+				}
+			
+				break
+		}
+		
+		([ status : "OK" ] as JSON).render response
+	}
+	
+	/**
+	 * Removes a rule from a group 
+	 * 
+	 * @param id
+	 * @return
+	 */
+	def removeRule(int id) {
+		
+		if (id > 0) {
+			
+			def group = Group.get(id)
+			if (group) {
+		
+				// get the rule parameter (an integer)
+				def ruleId = params.int('rule_id')
+				if (!ruleId) {
+					log.error("Error reading 'rule_id' parameter")
+					// set error message
+					flash.error = "default.communityhub.error.unknown"
+					// re-direct
+					redirect(action: "config", id: id)
+					return
+				}
+				
+				def rule = Rule.get(ruleId)
+				if (rule) {
+					
+					// remove the rule from the group
+					rule.removeFromGroups(group)
+					
+					// set message
+					flash.message = "default.communityhub.group.success.removerule"
+					// re-direct
+					redirect(action: "config", id: id)
+					return					
+				}
+				
+				// set error message
+				flash.error = "default.communityhub.error.unknown"
+				// re-direct
+				redirect(action: "config", id: id)
+				return
+			}
+		}
+		
+		// error
+		response.sendError(404)
+	}
+	
+	
+	
+	/**
+	 * Executes all 'service down' rules
+	 *
+	 * @return
+	 */
+	def ajaxExecuteServiceDownRules() {
+		
+		// execute the rules in the background
+		runAsync {
+			
+			// get all 'service down' rules
+			def rules = Rule.findAllWhere(type : AlertType.SERVICE_DOWN.toString())
+			
+			rulesService.executeAllRules(rules)
+		}
+		
+		def json = [ status : "OK" ]
+		render json as JSON
+	}
+	
+	/**
+	 * Executes all 'irregular data delivery' rules
+	 *
+	 * @return
+	 */
+	def ajaxExecuteIrregularDataDeliveryRules() {
+		
+		// get all 'irregular data delivery' rules
+		def rules = Rule.findAllWhere(type : AlertType.IRREGULAR_DELIVERY.toString())
+		
+		// execute the rules in the background
+		runAsync {
+			rulesService.executeAllRules(rules)
+		}
+		
+		def json = [ status : "OK", noRules : rules.size() ]
+		render json as JSON
 	}
 
+
+	/**
+	 * Renders a template with a list of sensor offerings
+	 *
+	 */
+	def ajaxOfferings() {
+
+		// get the service parameter (an integer)
+		def serviceId = params.int('service_id')
+		
+		def service = Service.get(serviceId)
+		if (service) {
+
+			// find all unique offerings 
+			def offerings =	OfferingProperties.findAllWhere(service: service, 
+				active: true)*.offering.unique()
+
+			// render the view with the specified model
+			render(view : "/community/t_ajax_offerings",
+					model: [ offerings : offerings ] )
+			return
+		}
+		
+		// error
+		response.sendError(404)
+	}
+
+	/**
+	 * Renders a template with a list of observed properties
+	 *
+	 * @return
+	 */
+	def ajaxProperties() {
+
+		// get the service parameter (an integer)
+		def serviceId = params.int('service_id')
+		// get the offering parameter
+		def offeringId = params.offering_id
+
+		def service = Service.get(serviceId)
+		if (service) {
+			def properties = OfferingProperties.findAllWhere(service: service, 
+				offering : offeringId, active: true)*.observedProperty
+			
+			// render the view with the specified model
+			render(view : "/community/t_ajax_properties",
+					model: [ properties : properties ] )
+			return
+		}
+		
+		// error
+		response.sendError(404)
+	}
+	
+	/**
+	 * Returns JSON with the number of offerings that contain the given
+	 * observed property for the given service
+	 *
+	 * @return
+	 */
+	def ajaxOfferingsWithSameProperty() {
+
+		// get the service parameter (an integer)
+		def serviceId = params.int('service_id')
+		// get the observed property
+		def property = params.observed_property
+		
+		def service = Service.get(serviceId)
+		if (service) {
+			// count 
+			def num = OfferingProperties.countByServiceAndObservedProperty(service, property)
+			// return response 
+			def json = [ "status" : "OK", "number" : num ]
+			render json as JSON
+			return
+		}
+		
+		// error 
+		([ status : "KO" ] as JSON).render response
+	}
+
+	/**
+	 * Returns JSON with information regarding if we support the data formats
+	 * served up by the given sensor offering  
+	 * 
+	 * @return
+	 */
+	def ajaxCheckSupportedFormats() {
+		
+		// get the service parameter (an integer)
+		def serviceId = params.int('service_id')
+		// get the offering parameter
+		def offeringId = params.offering_id
+
+		def service = Service.get(serviceId) 
+		if (service) {
+			def cache = CapabilitiesCache.findWhere(service: service)
+			if (cache.capabilities) {
+				// parse capabilities 
+				SosCapabilities caps = 
+					GetCapabilities.parseCapabilitiesDocument(cache.capabilities)
+				// get sensor offering object 
+				SensorOffering sensorOffering = caps.getOfferingById(offeringId)
+				// retrieve supported formats 
+				List<String> commonFormats = 
+					SosUtil.commonResponseFormats(sensorOffering)
+				// return "OK" if there is a common format 
+				if (commonFormats.size() > 0) {
+					([ status : "OK" ] as JSON).render response
+					return
+				}
+			}
+		}
+		
+		// error 
+		([ status : "KO" ] as JSON).render response
+	}
+	
+
+	
 }

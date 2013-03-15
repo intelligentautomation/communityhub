@@ -92,9 +92,18 @@ log4j = {
            'net.sf.ehcache.hibernate'
 		   
     info 'grails.app' 			// Set the default log level for our app code.
+	
+//	debug 'org.hibernate.SQL'
+//	trace 'org.hibernate.type'
 }
 
+// to enable jQuery
+grails.views.javascript.library="jquery"
+
+// to enable Bootstrap pagination 
+grails.plugins.twitterbootstrap.fixtaglib = true
+
 // Added by the Spring Security Core plugin:
-grails.plugins.springsecurity.userLookup.userDomainClassName = 'com.iai.communityhub.SecUser'
-grails.plugins.springsecurity.userLookup.authorityJoinClassName = 'com.iai.communityhub.SecUserSecRole'
-grails.plugins.springsecurity.authority.className = 'com.iai.communityhub.SecRole'
+grails.plugins.springsecurity.userLookup.userDomainClassName = 'communityhub.security.SecUser'
+grails.plugins.springsecurity.userLookup.authorityJoinClassName = 'communityhub.security.SecUserSecRole'
+grails.plugins.springsecurity.authority.className = 'communityhub.security.SecRole'

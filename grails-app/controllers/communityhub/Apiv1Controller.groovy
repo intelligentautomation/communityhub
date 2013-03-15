@@ -7,14 +7,22 @@ package communityhub
 
 import grails.converters.JSON
 
-import com.iai.communityhub.dao.GroupDao
-import com.iai.communityhub.model.Group
 
+/**
+ * Controller for version 1 of the Community Hub API 
+ * 
+ * @author Jakob Henriksson
+ *
+ */
 class Apiv1Controller {
 	
-	def jdbcTemplate
+	static allowedMethods = [
+		index: 'GET', 
+		ping: 'GET', 
+		groups: 'GET',
+	]
 	
-	def version = "1.0";
+	def version = "1.0"
 
 	/**
 	 * For documentation 
@@ -26,28 +34,28 @@ class Apiv1Controller {
 	}
 	
 	/**
-	 * Ping 
+	 * Returns a status message with supported API versions as JSON 
 	 * 
 	 * @return
 	 */
 	def ping() {
-		def json = [ "status" : "OK" ];
+		def json = [ 
+			"status" : "OK", 
+			"versions" : [ version ] 
+		]
 		render json as JSON
 	}
 	
 	/**
-	 * Returns the groups 
+	 * Returns the defined community groups as JSON 
 	 * 
 	 * @return
 	 */
 	def groups() {
 		
-		GroupDao daoGroup = new GroupDao(jdbcTemplate);
-		Collection<Group> groups = daoGroup.findAll();
-		
-		def jsonGroups = groups.collect {
+		def jsonGroups = Group.activeGroups.list().collect {
 			[ id : it.id, name : it.name, description : it.description, 
-			  created : it.created, createdBy : it.createdBy, admin : it.admin ]
+			  dateCreated : it.dateCreated, lastUpdated : it.lastUpdated ]
 		}
 		
 		def json = [ "status" : "OK", "version" : version, 

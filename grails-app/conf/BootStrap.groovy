@@ -1,15 +1,8 @@
-import com.iai.communityhub.dao.CapabilitiesCacheDao
-import com.iai.communityhub.dao.GroupDao
-import com.iai.communityhub.dao.GroupsAlertsXrefDao
-import com.iai.communityhub.dao.GroupsRulesXrefDao
-import com.iai.communityhub.dao.AlertDao
-import com.iai.communityhub.dao.OfferingPropertiesDao
-import com.iai.communityhub.dao.RuleDao
-import com.iai.communityhub.dao.ServiceDao
+import org.apache.commons.lang.StringUtils
 
-import communityhub.security.SecRole;
-import communityhub.security.SecUser;
-import communityhub.security.SecUserSecRole;
+import communityhub.security.SecRole
+import communityhub.security.SecUser
+import communityhub.security.SecUserSecRole
 
 class BootStrap {
 
@@ -19,18 +12,26 @@ class BootStrap {
 	
     def init = { servletContext ->
 		
+		String.metaClass.intro = { len ->
+			return StringUtils.abbreviate(delegate, len) ?: ''
+		}
+
+		GString.metaClass.intro = { len ->
+			return StringUtils.abbreviate(delegate.toString(), len)
+		}
+		
 		/*
 		 * Create tables if needed 
 		 * 
 		 */
-		new CapabilitiesCacheDao(jdbcTemplate).create();
-		new GroupDao(jdbcTemplate).create();
-		new GroupsAlertsXrefDao(jdbcTemplate).create();
-		new GroupsRulesXrefDao(jdbcTemplate).create();
-		new AlertDao(jdbcTemplate).create();
-		new OfferingPropertiesDao(jdbcTemplate).create();
-		new RuleDao(jdbcTemplate).create();
-		new ServiceDao(jdbcTemplate).create();
+//		new CapabilitiesCacheDao(jdbcTemplate).create();
+//		new GroupDao(jdbcTemplate).create();
+//		new GroupsAlertsXrefDao(jdbcTemplate).create();
+//		new GroupsRulesXrefDao(jdbcTemplate).create();
+//		new AlertDao(jdbcTemplate).create();
+//		new OfferingPropertiesDao(jdbcTemplate).create();
+//		new RuleDao(jdbcTemplate).create();
+//		new ServiceDao(jdbcTemplate).create();
 		
 		/*
 		 * Create users 

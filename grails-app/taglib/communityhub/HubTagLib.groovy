@@ -5,18 +5,11 @@
  */
 package communityhub
 
-import org.springframework.dao.DataAccessException
-
-import com.iai.communityhub.AlertType
-import com.iai.communityhub.dao.ServiceDao
-import com.iai.communityhub.model.Service
 import com.iai.proteus.common.Labeling
 
 
 class HubTagLib {
 	
-	def jdbcTemplate
-
 	/**
 	 * Returns the body if the "rule" attribute (which can be a 
 	 * Rule or an Alert) has a type that matches the given "type" 
@@ -24,31 +17,15 @@ class HubTagLib {
 	 *  
 	 */
 	def ifAlert = { attrs, body ->
-		def type = attrs.type;
-		def rule = attrs.rule;
-		AlertType alertType = AlertType.parse(rule.getType());
-		if (alertType.equals(AlertType.ALERT_SERVICE_DOWN) && 
+		def type = attrs.type
+		def rule = attrs.rule
+		AlertType alertType = AlertType.parse(rule.type)
+		if (alertType.equals(AlertType.SERVICE_DOWN) && 
 			type.equals("service")) {
-			out << body();
-		} else if (alertType.equals(AlertType.ALERT_IRREGULAR_DATA_DELIVERY) && 
+			out << body()
+		} else if (alertType.equals(AlertType.IRREGULAR_DELIVERY) && 
 			type.equals("irregular")) {
-			out << body();
-		}
-	}
-	
-	/**
-	 * Returns the service URL that the given Rule object specified 
-	 * in the "rule" attribute is specified on 
-	 *  
-	 */
-	def getServiceUrl = { attrs, body ->
-		def rule  = attrs.rule; 
-		ServiceDao dao = new ServiceDao(jdbcTemplate);
-		try {
-			Service service = dao.findUniqueObjectById("" + rule.getServiceId());
-			out << service.getEndpoint();
-		} catch (DataAccessException e) {
-			log.error("Data access exception: " + e.getMessage());
+			out << body()
 		}
 	}
 	
@@ -57,17 +34,14 @@ class HubTagLib {
 	 *
 	 */
 	def getServiceTitle = { attrs, body ->
-		def serviceId = attrs.serviceId;
-		ServiceDao dao = new ServiceDao(jdbcTemplate);
-		try {
-			Service service = dao.findUniqueObjectById("" + serviceId);
-			out << service.getTitle();
-		} catch (DataAccessException e) {
-			log.error("Data access exception: " + e.getMessage());
+		def serviceId = attrs.serviceId
+		def service = Service.get(serviceId)
+		if (service) {
+			out << service.title
 		}
 	}
 	
-	def isThisMonth = { attrs, body -> 
+	def isThisMonth = { attrs, body ->
 		def date = attrs.date;
 		if (date != null) {
 			Calendar calNow = Calendar.getInstance();
@@ -96,7 +70,7 @@ class HubTagLib {
 			}
 		} else {
 			log.error("Missing argument to TagLib: isNotThisMonth");
-		} 
+		}
 	}
 	
 	def inFuture = { attrs, body ->
@@ -121,13 +95,12 @@ class HubTagLib {
 			cal.setTime(date);
 			if (!cal.after(calNow)) {
 				out << body();
-			} 
+			}
 		}
 	}
 
-			
 	def niceProperty = { attrs, body ->
-		out << Labeling.labelProperty(body().toString().trim());
+		out << Labeling.labelProperty(body().toString().trim())
 	}
-	
+		
 }

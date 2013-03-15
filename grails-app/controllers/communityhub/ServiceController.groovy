@@ -8,49 +8,105 @@ package communityhub
 import grails.converters.JSON
 import grails.plugins.springsecurity.Secured
 
-import org.springframework.dao.DataAccessException
-
-import com.iai.communityhub.HubUtils
-import com.iai.communityhub.dao.CapabilitiesCacheDao
-import com.iai.communityhub.dao.OfferingPropertiesDao
-import com.iai.communityhub.dao.ServiceDao
-import com.iai.communityhub.model.CapabilitiesCache
-import com.iai.communityhub.model.OfferingProperties
-import com.iai.communityhub.model.Service
-import com.iai.communityhub.paging.Paginator
-
+/**
+ * Controller for viewing and managing services 
+ * 
+ * @author Jakob Henriksson 
+ *
+ */
 class ServiceController {
-	
-	def jdbcTemplate
+
+	static allowedMethods = [ 
+		index: 'GET', 
+		list: 'GET', 
+		create: 'GET', 
+		view: 'GET', 
+		save: 'POST', 
+		delete: 'POST',
+		boundingboxes: 'GET' 
+	]
 	
 	def serviceService
 
+	/**
+	 * Index 
+	 * 
+	 * @return
+	 */
+	@Secured(['ROLE_ADMIN'])
+	def index() {
+		redirect(action: 'list', params: params)
+	}
+	
 	/**
 	 * List all services 
 	 * 
 	 * @return
 	 */
 	@Secured(['ROLE_ADMIN'])
-	def index() {
+	def list() {
+		// find all active services 
+		def services = Service.activeServices.list(params)
+		[ services : services ]
+	}
+	
+	/**
+	 * Displays page to create a new service 
+	 *
+	 * @return
+	 */
+	@Secured(['ROLE_ADMIN'])
+	def create() {
 		
-		// get the requested page, default to 1 if there is a problem
-		Integer page = params.int('page')
-		if (!page)
-			page = 1;
-			
-		def max = 5;
+	}
+	
+	/**
+	 * Saves a new service 
+	 *
+	 * @return
+	 */
+	@Secured(['ROLE_ADMIN'])
+	def save() {
 		
-		ServiceDao dao = new ServiceDao(jdbcTemplate);
-		def paginator = new Paginator<Service>(dao, max);
+		// get the parameters
+		def url = params.inputUrl
+		def type = params.inputServiceType
 		
-		try {
-			paginator.setCurPage(page);
-		} catch (IllegalArgumentException e) {
-			log.error("Illegal argument: " + e.getMessage());
-			paginator.setCurPage(paginator.numPages);
+		def errorCode = null
+
+		// check for errors 
+		if (url == null)
+			errorCode = "default.communityhub.error.unknown"
+		// check for empty end-point  
+		else if (url.trim().equals(""))
+			errorCode = "default.communityhub.service.error.emptyurl"
+		// check if the service already exists
+		else if (Service.findAllWhere(endpoint: url, active: true).size() > 0)
+			errorCode = "default.communityhub.service.error.exists"
+
+		// return with error if needed 
+		if (errorCode != null) {
+			// set message
+			flash.error = errorCode
+			// re-direct
+			redirect(action: 'create', params: [url : url, type: type])
+			return
+		}
+
+		// try to add service 		
+		Service service = serviceService.addService(type, url)
+		if (service) {
+			// set message
+			flash.message = "default.communityhub.service.success.added"
+			// re-direct 
+			redirect(action: 'view', id: service.id)
+			return
 		}
 		
-		return [ paginator : paginator ]
+		// default
+		errorCode = "default.communityhub.error.unknown"
+		redirect(action: 'create', params: 
+				[url : url, type: type, error: errorCode])
 	}
 	
 	/**
@@ -64,33 +120,58 @@ class ServiceController {
 		
 		if (id > 0) {
 			
-			try {
-				
-				ServiceDao daoService = new ServiceDao(jdbcTemplate);
-				Service service = daoService.findUniqueObjectById("" + id);
-			
-				return [service : service];
-				
-			} catch (DataAccessException e) {
-				log.error("Data access exception: " + e.getMessage());
+			// find and return service 
+			def service = Service.get(id)
+			if (service)
+				return [service : service]
+		}
+
+		// error 		
+		response.sendError(404)
+	}	
+	
+	/**
+	 * Removes a service
+	 *
+	 * @param id service ID
+	 * @return
+	 */
+	@Secured(['ROLE_ADMIN'])
+	def delete(int id) {
+		
+		if (id > 0) {
+
+			def service = Service.get(id)
+			if (service) {
+				// update service
+				service.active = false
+				service.save()
+				// set message
+				flash.message = "default.communityhub.service.success.deleted"
+				// re-direct
+				redirect(action: 'list')
+				return
 			}
-			
 		}
 		
-		response.sendError(404);
+		// error
+		response.sendError(404) 
 	}
 	
 	/**
-	 * Handles fetching of bounding boxes of offerings
+	 * Handles fetching of bounding boxes of offerings in a given service. 
+	 * 
+	 * Returns JSON
+	 * 
 	 *
 	 * @return
 	 */
-	def ajax_bboxes(int id) {
+	def boundingboxes(int id) {
 
 		if (id > 0) {
 			
 			Map<String, Object> locations = 
-				serviceService.findBoundingBoxesForService(id);
+				serviceService.findBoundingBoxesForService(id)
 				
 			if (locations != null) {
 				
@@ -105,69 +186,8 @@ class ServiceController {
 			} 					
 		}
 		
-		println "CAN"
-		
-		response.sendError(404);		
-	}
-		
-
-	/**
-	 * Add a new service 
-	 *
-	 * @return
-	 */
-	@Secured(['ROLE_ADMIN'])
-	def add() {
-		
-		if (request.method == "POST") {
-			
-			// get the parameters
-			def url = params.inputUrl;
-			def type = params.inputServiceType;
-
-			Service service = serviceService.addService(type, url);
-			if (service != null) {
-				def success = "The service was successfully added";
-				return [url : url, type: type, title : service.getTitle(), success : success ];
-			}
-			
-			def error = "There was an error fetching the capabilities document";
-			return [url : url, type: type, error : error ];
-		}
-
-		def error = "Request method not supported";
-		return [ error : error ]		
-	}
+		// error 
+		([ status : "KO" ] as JSON).render response		
+	}	
 	
-	/**
-	 * Removes a service
-	 *
-	 * @param id service ID
-	 * @return
-	 */
-	@Secured(['ROLE_ADMIN'])
-	def remove(int id) {
-		
-		if (id > 0) {
-			
-			System.out.println("OK, let's do it");
-			
-			ServiceDao daoService = new ServiceDao(jdbcTemplate);
-			try {
-				Service service = daoService.findUniqueObjectById("" + id);
-				System.out.println("Service: " + service);
-				// de-activate the service 
-				int res = daoService.setActiveStatus(service, false);
-				if (res > 0) {
-					// return success
-					([status: "OK"] as JSON).render response
-					return;
-				}
-			} catch (DataAccessException e) {
-				log.error("Could not find service with id: " + id);
-			}
-		}
-		
-		([status: "KO"] as JSON).render response
-	}
 }

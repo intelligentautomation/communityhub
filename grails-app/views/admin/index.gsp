@@ -15,8 +15,7 @@
 			 function(data, status) {
 			     if (data != null && data.status == "OK") {
 				 // TODO: indicate success
-				 var text = 'Rules to be executed: ' + 
-				     data.noRules;
+				 var text = 'Rules are being executed '; 
 				 $("#result-holder").html(text);
 			     } else {
 				 // TODO: indicate failure 
@@ -31,8 +30,7 @@
 			 function(data, status) {
 			     if (data != null && data.status == "OK") {
 				 // TODO: indicate success
-				 var text = 'Rules to be executed: ' + 
-				     data.noRules;
+				 var text = 'Rules are being executed '; 
 				 $("#result-holder").html(text);
 			     } else {
 				 // TODO: indicate failure 

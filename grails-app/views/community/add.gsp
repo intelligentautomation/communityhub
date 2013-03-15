@@ -81,19 +81,22 @@
 
 	      $.ajax({
 		  type: "POST",
-		  url: '${createLink(controller: "community", action: "ajaxCreateRule")}', 
+		  url: '${createLink(controller: "community", action: "createRule")}', 
 		  contentType : "text/plain",
 		  dataType: 'json',
 		  data: JSON.stringify(json),
 		  success: function(msg) {
 		      showSuccessAlert(); 
+		  }, 
+		  error: function(msg) {
+		      showErrorAlert(); 
 		  }
 	      });
 	  });
 
 	  // "cancel" button 
 	  $("#btn-cancel").click(function() {
-	      window.location = '${createLink(controller: "community", action: "rules", id: group.id)}';
+	      window.location.href = '${createLink(controller: "community", action: "config", id: group.id)}';
 	  });
 
 	  $(".target-service-outer button.btn-service").click(function () {
@@ -125,21 +128,29 @@
 
       function showSuccessAlert() {
 	  var div = 
-	      '<div class="alert alert-block alert-success fade in">' + 
+	      '<div class="alert alert-success fade in">' + 
 	      '<button type="button" class="close" data-dismiss="alert">×</button>' + 
-	      '<h4 class="alert-heading">Success!</h4>' + 
-	      '<p>The rule was successfully added to the group</p>' + 
+	      '<strong>Success!</strong> The rule was successfully added to the group' + 
 	      '</div>';
 
-	  $("#alert-holder").append($(div).delay(4000).fadeOut(400)); 
+	  $("#alert-holder").append($(div)); 
+      }
+
+      function showErrorAlert() {
+	  var div = 
+	      '<div class="alert alert-error fade in">' + 
+	      '<button type="button" class="close" data-dismiss="alert">×</button>' + 
+	      '<strong>Failure!</strong> Sorry, something went wrong during the request' + 
+	      '</div>';
+
+	  $("#alert-holder").append($(div)); 
       }
 
       function showUnsupportedFormatAlert(offeringId) {
 	  var div = 
-	      '<div class="alert alert-block alert-warning fade in">' + 
+	      '<div class="alert alert-warning fade in">' + 
 	      '<button type="button" class="close" data-dismiss="alert">×</button>' + 
-	      '<h4 class="alert-heading">Warning!</h4>' + 
-	      '<p>We currently do not support any of the available response formats for offering: <strong>' + offeringId + '</strong></p>' + 
+	      '<strong>Warning!</strong> We currently do not support any of the available response formats for offering: <strong>' + offeringId + '</strong></p>' + 
 	      '</div>';
 
 	  $("#alert-holder").append($(div).delay(4000)); 
@@ -459,8 +470,8 @@
 
     <div style="clear: both;"></div>
     <p>
-      <a id="btn-create-rule" class="btn btn-success disabled">Add rule to group</a>
-      <a id="btn-cancel" class="btn">Go back to group overview</a>
+      <a id="btn-create-rule" class="btn btn-success disabled"><i class="icon-plus icon-white"></i> Add rule to group</a>
+      <a id="btn-cancel" class="btn"><i class="icon-chevron-left"></i> Go back to group overview</a>
     </p>
 
   </body>

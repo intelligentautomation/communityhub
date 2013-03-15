@@ -3,22 +3,27 @@
   <head>
     <title><g:layoutTitle default="Community Hub"/></title>
     
+    <%-- Bootstrap --%>
+    <r:require modules="bootstrap" />
+
     <style>
       body {
-      padding-top: 60px; /* 60px to make the container go all the way to the bottom of the topbar */
+      /* 60px to make the container go all the way to the bottom of the topbar */
+      padding-top: 60px; 
       }
     </style>
 
-    <link rel="stylesheet" media="screen" href="${resource(dir: 'bootstrap/css/', file: 'bootstrap.min.css' )}">
-    <link rel="stylesheet" media="screen" href="${resource(dir: 'bootstrap/css/', file: 'bootstrap-responsive.min.css' )}">
-    <link rel="stylesheet" media="screen" href="${resource(dir: 'less/', file: 'style.less' )}">
-
-    <link rel="shortcut icon" type="image/png" href="${resource(dir: 'images', file: 'favicon.png')}">
-
-    <script src="${resource(dir: 'js/', file: 'jquery-1.8.2.min.js')}" type="text/javascript"></script>
-    <script src="${resource(dir: 'js/', file: 'utils.js')}" type="text/javascript"></script>
+    <%-- jQuery --%>
+    <g:javascript library="jquery" plugin="jquery" />
+    <script src="${resource(dir: 'js/', file: 'utils.js')}" 
+	    type="text/javascript"></script>
 
     <r:layoutResources />
+
+    <link rel="shortcut icon" type="image/png" 
+	  href="${resource(dir: 'images', file: 'favicon.png')}">
+    <link rel="stylesheet" media="screen" 
+	  href="${resource(dir: 'less/', file: 'style.less' )}">
     
     <g:layoutHead/>
 
@@ -85,7 +90,7 @@
 	      <sec:ifNotLoggedIn>
 		<li>
 		  <g:link controller="login" 
-			  action="auth" params="[to: "${request.forwardURI}"]">Login</g:link>
+			  action="auth" params="[url: "${request.forwardURI}"]">Login</g:link>
 		</li>
 	      </sec:ifNotLoggedIn>
 
@@ -100,6 +105,30 @@
 
     <div class="container">
 
+      <%-- messages --%>
+
+      <g:if test="${flash.error}">
+	<div class="alert alert-error fade in">
+	  <button type="button" class="close" data-dismiss="alert">&times;</button>
+	  <strong>Error!</strong> 
+	  <g:message code="${flash.error}" 
+		     default="Sorry, an unknown error occured" />
+	</div>
+      </g:if>
+
+      <g:if test="${flash.message}">
+	<div class="alert alert-info fade in">
+	  <button type="button" class="close" data-dismiss="alert">&times;</button>
+	  <strong>Info!</strong> 
+	  <g:if test="${flash.message}">
+	    <g:message code="${flash.message}" 
+		       default="Sorry, an unknown message was delivered" />
+	  </g:if>
+	</div>
+      </g:if>
+
+      <%-- body --%>
+
       <g:layoutBody/>
 
     </div>
@@ -109,28 +138,20 @@
 	<a class="secret" 
 	   href="http://www.i-a-i.com">Intelligent Automation Inc.</a> 
 	&copy; 
-	2012
+	2013
       </p>
       <p class="disabled">Version <g:meta name="app.version"/></p>
       <%--
-      <p>&copy; Intelligent Automation Inc. 2012 &mdash;
+      <p>&copy; Intelligent Automation Inc. 2013 &mdash;
         15400 Calhoun Drive, Suite 400, Rockville, MD 20855 &mid; Phone: 301 294 5200 &mid; Fax: 301 294 5201</p>
       --%>
     </div>
 
-    <!--
-        <div id="bottom-links">
-          <div class="row">
-            <div class="span4">Text 1</div>
-            <div class="span4">Text 2</div>
-            <div class="span4">Text 3</div>
-          </div>
-        </div>
-        -->
-
+    <%-- bootstrap --%>
+    <r:layoutResources/>
 
     <!-- Placed at the end of the document so the pages load faster -->
-    <script src="${resource(dir: 'bootstrap/js/', file: 'bootstrap.min.js')}"></script>
+    <%--<script src="${resource(dir: 'bootstrap/js/', file: 'bootstrap.min.js')}"></script>--%>
 
   </body>
 </html>

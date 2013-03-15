@@ -7,10 +7,6 @@ package communityhub
 
 import grails.plugins.springsecurity.Secured
 
-import com.iai.communityhub.dao.ServiceDao
-import com.iai.communityhub.model.Service
-import com.iai.communityhub.paging.Paginator
-
 class AdminController {
 	
 	def jdbcTemplate

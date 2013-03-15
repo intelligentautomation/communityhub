@@ -1,5 +1,5 @@
 <g:if test="${offerings}">
-	<g:each in="${offerings}" var="offering">
+	<g:each var="offering" in="${offerings}">
 	    <button data-offering="${offering}"  
 	       class="btn btn-full btn-link">${offering}</button>
 	</g:each>

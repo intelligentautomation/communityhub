@@ -132,6 +132,12 @@
 	    // show loader
 	    $("#ajax-loader").show();
 	    // issue request
+
+	    //	    $.ajax({
+	    //	type: 'POST',
+	    //	url: '${createLink(controller: "service", action: "delete", id: service.id)}', 
+	    //data: {}, 
+
 	    $.get("${createLink(action: 'remove', id: service.id)}", 
         	  {}, 
         	  function(data, status) {
@@ -175,7 +181,7 @@
 	--%>
 
 	// fetch bounding boxes
-	$.getJSON('${createLink(controller: "service", action: "ajax_bboxes", id: service.id)}', 
+	$.getJSON('${createLink(controller: "service", action: "boundingboxes", id: service.id)}', 
               { },
               function(data, status) {
         	  if (data.status == 'OK') {
@@ -195,52 +201,16 @@
     
     <p class="lead">${service.title}</p>
 
-    <div class="row">
-      <div class="span4">
+    <div id="map" style="height: 350px;"></div>
 
-	<table class="table table-striped">
-	  <%--
-	     <tr>
-   	       <td>Provider</td>
-   	       <td>@service.providerName</td>
-	     </tr>
-	  <tr>
-   	    <td>Site</td>
-	    <td><a href="@service.providerSite">@service.providerSite</a></td>
-	  </tr>
-	  <tr>
-   	    <td>Keywords</td>
-   	    <td class="service-keywords">@service.serviceKeywords</td>
-	  </tr>
-	  <tr>
-   	    <td>Fees</td>
-   	    <td>@service.serviceFees</td>
-	  </tr>
-	  --%>
-	  <tr>
-   	    <td>Service URL</td>
-   	    <td><a href="${service.endpoint}">${service.endpoint}</a></td>
-	  </tr>
-	  <%--
-	     <tr id="loader-row">
-   	       <td>&nbsp;</td>
-   	       <td>
-		 <img src="@routes.Assets.at("images/ajax-loader.gif")"
-		      alt="Loading" title="Loading" />
-   	       </td>
-	     </tr>
-	     --%>
-	</table>
-	
-      </div>
-      <div class="span8">
-	
-	<div id="map" style="height: 350px;"></div>
+    <br />
 
-      </div>
-    </div>
-    
-    <p></p>
+    <table class="table table-striped">
+      <tr>
+	<td>Service URL</td>
+	<td><a href="${service.endpoint}">${service.endpoint}</a></td>
+      </tr>
+    </table>
     
     <sec:access expression="hasRole('ROLE_ADMIN')">
       <button class="btn btn-danger pull-right" type="button" data-toggle="modal" 
@@ -260,8 +230,12 @@
   	     style="display: none;"
 	     id="ajax-loader"
 	     alt="Loading" title="Loading" />
-	<a href="#" id="btn-modal-delete-cancel" class="btn">Cancel</a>
-	<a href="#" id="btn-modal-delete-delete" class="btn btn-danger">Delete</a>
+
+	<%-- form to delete the service --%>
+	<form action="${createLink(controller: 'service', action: 'delete', id: service.id)}" method="POST">
+	  <a href="#" id="btn-modal-delete-cancel" class="btn">Cancel</a>
+	  <input type="submit" class="btn btn-danger" value="Delete" />
+	</form>
       </div>
     </div>
 

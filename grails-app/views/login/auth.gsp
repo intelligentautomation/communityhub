@@ -18,11 +18,11 @@
 	
 	<%--
 	<div class="fheader"><g:message code="springSecurity.login.header"/></div>
-	--%>
 
 	<g:if test="${flash.message}">
 	  <div class="login_message">${flash.message}</div>
 	</g:if>
+	--%>
 
 	<form id="loginForm" 
 	      action="${postUrl}" method="POST" class="form-horizontal">
@@ -56,7 +56,7 @@
 	  </div>
 
 	  <div class="form-actions">
-	    <button type="submit" class="btn btn-primary">Login</button>
+	    <button type="submit" class="btn btn-primary"><i class="icon-user icon-white"></i> Login</button>
 	  </div>
 
 	</form>

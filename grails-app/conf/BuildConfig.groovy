@@ -12,7 +12,7 @@ grails.project.dependency.resolution = {
         // specify dependency exclusions here; for example, uncomment this to disable ehcache:
         // excludes 'ehcache'
     }
-    log "error" // log level of Ivy resolver, either 'error', 'warn', 'info', 'debug' or 'verbose'
+    log "warn" // log level of Ivy resolver, either 'error', 'warn', 'info', 'debug' or 'verbose'
     checksums true // Whether to verify checksums on resolve
 
     repositories {
@@ -26,7 +26,7 @@ grails.project.dependency.resolution = {
         mavenCentral()
 
         // uncomment these (or add new ones) to enable remote dependency resolution from public Maven repositories
-        //mavenRepo "http://snapshots.repository.codehaus.org"
+//        mavenRepo "http://snapshots.repository.codehaus.org"
         //mavenRepo "http://repository.codehaus.org"
         //mavenRepo "http://download.java.net/maven/2/"
         //mavenRepo "http://repository.jboss.com/maven2/"
@@ -40,12 +40,19 @@ grails.project.dependency.resolution = {
 		compile 'log4j:log4j:1.2.17'
 		compile 'joda-time:joda-time:2.1'
 		compile 'net.sf.opencsv:opencsv:2.3'
+		
+//        compile "org.grails:grails-core:2.2.2.BUILD-SNAPSHOT", { exclude "grails" }
     }
 
     plugins {
         runtime ":hibernate:$grailsVersion"
-        runtime ":jquery:1.7.2"
-        runtime ":resources:1.1.6"
+        runtime ":jquery:1.8.3"
+        runtime ":resources:1.2.RC2"
+		
+		compile ":less-resources:1.3.3.1"
+		compile ":twitter-bootstrap:2.3.0"
+		
+		compile ":quartz:1.0-RC5"
 
         // Uncomment these (or add new ones) to enable additional resources capabilities
         //runtime ":zipped-resources:1.0"
@@ -57,6 +64,6 @@ grails.project.dependency.resolution = {
         runtime ":database-migration:1.1"
 
         compile ':cache:1.0.0'
-	compile ':spring-security-core:1.2.7.3'
+		compile ':spring-security-core:1.2.7.3'
     }
 }
