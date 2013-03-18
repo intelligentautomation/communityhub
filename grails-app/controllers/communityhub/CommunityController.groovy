@@ -653,6 +653,10 @@ class CommunityController {
 		// execute the rules in the background
 		runAsync {
 			
+			// NOTE: we need to query for the rules in this thread 
+			// (i.e. within the runAsync {} block), presumably for 
+			// subsequent queries 
+			
 			// get all 'service down' rules
 			def rules = Rule.findAllWhere(type : AlertType.SERVICE_DOWN.toString())
 			
@@ -670,15 +674,20 @@ class CommunityController {
 	 */
 	def ajaxExecuteIrregularDataDeliveryRules() {
 		
-		// get all 'irregular data delivery' rules
-		def rules = Rule.findAllWhere(type : AlertType.IRREGULAR_DELIVERY.toString())
-		
 		// execute the rules in the background
 		runAsync {
+
+			// NOTE: we need to query for the rules in this thread 
+			// (i.e. within the runAsync {} block), presumably for 
+			// subsequent queries 
+			
+			// get all 'irregular data delivery' rules
+			def rules = Rule.findAllWhere(type : AlertType.IRREGULAR_DELIVERY.toString())
+			
 			rulesService.executeAllRules(rules)
 		}
 		
-		def json = [ status : "OK", noRules : rules.size() ]
+		def json = [ status : "OK" ]
 		render json as JSON
 	}
 

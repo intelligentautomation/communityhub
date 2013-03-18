@@ -471,7 +471,7 @@
     <div style="clear: both;"></div>
     <p>
       <a id="btn-create-rule" class="btn btn-success disabled"><i class="icon-plus icon-white"></i> Add rule to group</a>
-      <a id="btn-cancel" class="btn"><i class="icon-chevron-left"></i> Go back to group overview</a>
+      <a id="btn-cancel" class="btn"><i class="icon-chevron-left"></i> Go back to group configuration</a>
     </p>
 
   </body>

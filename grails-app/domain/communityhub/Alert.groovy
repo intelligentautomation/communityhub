@@ -63,6 +63,8 @@ class Alert {
 		autoTimestamp true
 		table 'hub_alert'
 		detail(type: 'text')
+		// default sort 
+		sort dateCreated: "desc" 
 	}
 	
 	static namedQueries = {

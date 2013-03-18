@@ -21,7 +21,7 @@
     <r:layoutResources />
 
     <link rel="shortcut icon" type="image/png" 
-	  href="${resource(dir: 'images', file: 'favicon.png')}">
+	  href="${resource(dir: 'images', file: 'favicon.ico')}">
     <link rel="stylesheet" media="screen" 
 	  href="${resource(dir: 'less/', file: 'style.less' )}">
     

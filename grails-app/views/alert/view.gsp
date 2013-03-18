@@ -55,7 +55,7 @@
 	      $("#p-progress").show();
 	      $.getJSON('${createLink(controller: "alert", action: "sensorData")}', 
 		  	{
-		  	    alert_id : ${id}
+		  	    alert_id : ${alert.id}
 		  	}, 
 		  	function (data) {
 			    // hide progress bar

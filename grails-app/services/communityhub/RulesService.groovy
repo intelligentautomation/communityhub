@@ -177,14 +177,10 @@ class RulesService {
 		// then generate an alert 
 		else {
 			
-			println "Will generate alert..."
-		
 			// update service status
 			service.alive = false
 			service.save(flush: true, insert: false)
 			
-			println "Saved service..."
-		
 			// crate the alert
 			def alert = new Alert()
 			alert.service = service
@@ -198,15 +194,8 @@ class RulesService {
 			alert.detail = "We were not able to fetch the " +
 				service.getType() + " Capabilities " + 
 				"document from service endpoint " + service.getEndpoint()
-			if (!alert.save(flush: true)) {
-				alert.errors.each {
-					println it 
-				}
-			}
-//			alert.save(flush: true)
+			alert.save(flush: true)
 			
-			println "Created an alert..."
-
 			// associate the generated alert with the appropriate groups 
 			associateAlertWithGroups(alert, rule)
 			
@@ -223,6 +212,8 @@ class RulesService {
 	void executeIrregularDataDeliveryRule(Rule rule, Map<Integer, SosCapabilities> capabilities) 
 	{
 		
+		log.info("Executing irregular data delivery rule: " + rule.id)
+		
 		// offering IDs and property IDs are optional
 		// (but there must be at least one)
 		String offering = rule.getOffering()
@@ -234,23 +225,35 @@ class RulesService {
 					"skipping.")
 			return
 		}
-
+		
+		println "Start..."
 		// get the service object
-		Service service = rule.service
+		Service service = rule.getService()
+		println "End.."
+		
+		
 
 		// get the capabilities object
 		SosCapabilities caps = null
 		if (capabilities.containsKey(service.id)) {
+			println "Here1"
 			// get already parsed Capabilities
 			caps = capabilities.get(service.id)
+			println "Here1.2"
 		} else {
+			println "Here2"
 			CapabilitiesCache cache = CapabilitiesCache.findByService(service)
+			println "Here2.1"
 			// parse the document
 			caps =
 				GetCapabilities.parseCapabilitiesDocument(cache.getCapabilities())
+			println "Here2.2"
 			// store the capabilities object
 			capabilities.put(service.id, caps)
+			println "Here2.3"
 		}
+		
+		println "Start 2..."
 
 		// we have an offering
 		if (offering != null) {
@@ -284,6 +287,8 @@ class RulesService {
 			executeRule(caps, rule, service, property)
 
 		}
+		
+		log.info("Done executing irregular data delivery rule: " + rule.id)
 
 	}
 
@@ -321,10 +326,9 @@ class RulesService {
 		
 		// find active offerings/properties pairs
 		def offerings = 
-			OfferingProperties.findAllWhere(service: service, active: true) {
-				sort: "offering" 
-			}
-
+			OfferingProperties.findAllByServiceAndActive(service, true, 
+				[sort: "offering"])
+						
 		// go through all offerings 
 		for (SensorOffering offering : capabilities.getOfferings()) {
 			// if we find one with the observed property, analyze 
@@ -393,9 +397,7 @@ class RulesService {
 		SensorOffering sensorOffering, String observedProperty) 
 	{
 		
-		// TODO: update 
-		
-		// TODO: fix
+		// TODO: make general 
 		DateTime to = new DateTime()
 		DateTime from = to.minusHours(24)
 		
@@ -403,9 +405,9 @@ class RulesService {
 			getSensorData(service.getEndpoint(), sensorOffering,
 				observedProperty, from, to)
 			
-		log.info("Yes, we got response from: " + sensorOffering.getName())
-			
 		if (serviceResponse.getResult().equals(Result.RESULT_OK)) {
+			
+			log.info("Got OK response from: " + sensorOffering.getName())
 			
 			SensorData sensorData = serviceResponse.getSensorData()
 			
@@ -432,16 +434,16 @@ class RulesService {
 			// might be caused by duplicates
 			durations.remove(new Duration(0, 0))
 		
-//			for (Duration duration : durations) {
-//				log.info("Duration: " + duration.getStandardMinutes());
-//			}
+			for (Duration duration : durations) {
+				log.info("Duration (" + sensorOffering.getGmlId() + "): " + duration.getStandardMinutes());
+			}
 			
 			if (durations.size() > 1) {
 				
-				Alert alert = new Alert()
+				def alert = new Alert()
 				alert.service = service
 				alert.validFrom = from.toDate()
-				alert.validTo to.toDate()
+				alert.validTo = to.toDate()
 				alert.type = AlertType.IRREGULAR_DELIVERY.toString()
 				alert.latLower = sensorOffering.getLowerCornerLat()
 				alert.latUpper = sensorOffering.getUpperCornerLat()
@@ -458,7 +460,9 @@ class RulesService {
 				log.warn("Alert generated for " + sensorOffering.getGmlId())
 			}
 		
-		}
+		} else {
+			log.info("Got NOT OK response from: " + sensorOffering.getName())
+		}		
 
 	}
 	
