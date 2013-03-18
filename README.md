@@ -8,7 +8,7 @@ The Community Hub is a [Grails](http://grails.org "Grails") Web application that
 
 ## Requirements 
 
-The following are the requirements: 
+The following are the minimum requirements: 
 
 * Grails version 2.2.1
 * JDK 1.6 or JDK 1.7 
@@ -35,7 +35,7 @@ In order to configure the Community Hub with a database, you address and the use
 An example contents of this file could be: 
 
     environments {
-    	development {
+    	production {
  	    	dataSource {
  		    	url = "jdbc:mysql://127.0.0.1/communityhub"
  			    username = "USERNAME"
@@ -43,6 +43,18 @@ An example contents of this file could be:
  		    }
  	    }
      }
+	 
+## Deployment 
+
+The easiest way to deploy a Grails application is to make use of the built-in support for generating a WAR file for your project and then deploying that file in an application server container (e.g. [Glassfish](http://glassfish.java.net/ "Glassfish")). 
+
+To build the WAR file, enter the following command into the terminal while at the root of the project: 
+
+    grails prod war
+
+The resulting file will be called *communityhub-[ver].war* and can be found in the *target* directory. Deploy this file to your application server.
+
+Read more: [Grails Deployment](http://grails.org/Deployment "Grails deployment"). 
 
 ## License 
 

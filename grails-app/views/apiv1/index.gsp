@@ -171,7 +171,8 @@
             latUpper: -46.67,
             lonLower: 161,
             lonUpper: 161,
-            offering: "station-55013",
+            serviceEndpoint: "http://sdf.ndbc.noaa.gov/sos/server.php", 
+            sensorOfferingId: "station-55013",
             observedProperty: "http://mmisw.org/ont/cf/parameter/sea_floor_depth_below_sea_surface"
         },
         {

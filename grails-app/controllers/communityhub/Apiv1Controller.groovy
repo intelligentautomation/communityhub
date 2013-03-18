@@ -95,8 +95,10 @@ class Apiv1Controller {
 					  dateCreated : it.dateCreated, lastUpdated : it.lastUpdated, 
 					  validFrom : it.validFrom, validTo : it.validTo,
 					  latLower : it.latLower, latUpper : it.latUpper, 
-					  lonLower : it.lonLower, lonUpper : it.lonUpper, 
-					  offering : it.offering, observedProperty : it.observedProperty ]
+					  lonLower : it.lonLower, lonUpper : it.lonUpper,
+					  serviceEndpoint : it.service.endpoint, 
+					  sensorOfferingId : it.offering, 
+					  observedProperty : it.observedProperty ]
 				}
 				
 				// create complete response structure 
