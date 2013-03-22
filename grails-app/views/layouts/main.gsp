@@ -5,6 +5,7 @@
     
     <%-- Bootstrap --%>
     <r:require modules="bootstrap" />
+    <r:require modules="bootstrap-responsive-css" />
 
     <style>
       body {
@@ -103,7 +104,7 @@
       </div>
     </div>
 
-    <div class="container">
+    <div class="container-fluid">
 
       <%-- messages --%>
 
