@@ -32,4 +32,12 @@ class OfferingProperties {
 	static mapping = {
 		table 'hub_offering_properties'		
 	}
+	
+	static namedQueries = {
+			// returns the active services 
+			activeOfferings {
+				eq('active', true)
+			}
+    }	
+	
 }
