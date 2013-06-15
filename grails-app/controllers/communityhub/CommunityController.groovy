@@ -311,9 +311,6 @@ class CommunityController {
 	@Secured(['ROLE_ADMIN', 'ROLE_USER'])
 	def add(int id) {
 
-		// get the service parameter (an integer)
-		def serviceId = params.int('service')
-
 		if (id > 0) {
 			
 			def group = Group.get(id)
@@ -323,7 +320,7 @@ class CommunityController {
 				// the user is the administrator 
 				if (user.equals(group.admin)) {
 					def services = Service.activeServices.list()
-					return [group : group, serviceId : serviceId, services : services]
+					return [group : group, services : services]
 				}
 				
 				// set error message
@@ -337,6 +334,40 @@ class CommunityController {
 		// error 
 		return response.sendError(404)
 	}	
+	
+	@Secured(['ROLE_ADMIN', 'ROLE_USER'])
+	def add_irregular_delivery(int id) {
+		
+		if (id > 0) {
+			
+			def group = Group.get(id)
+			if (group) {
+				// check that the user is the administrator
+				def user = SecUser.get(springSecurityService.principal.id)
+				// the user is the administrator 
+				if (user.equals(group.admin)) {
+					
+					def services = Service.activeServices.list()
+					
+					def ops = OfferingProperties.activeOfferings.list()	
+					def offerings = ops*.offering.unique()
+					def properties = ops*.observedProperty.unique()
+					
+					return [group : group, services : services, offerings : offerings, properties : properties ]
+				}
+				
+				// set error message
+				flash.error = "default.communityhub.group.error.config"
+				// re-direct
+				redirect(action: "view", id: id)
+				return
+			}
+		}
+		
+		// error 
+		return response.sendError(404)
+		
+	}
 	
 	/**
 	 * Generates an alerts feed for a group

@@ -44,10 +44,8 @@
 	    <span class="icon-bar"></span>
 	    <span class="icon-bar"></span>
 	  </a> 
-
-	  <a href="${createLink(controller: 'alert')}"
-	     class="brand"><g:img dir="images" 
-				  file="iai-logo-black.png" /></a>
+	  
+	  <a href="${createLink(controller: 'alert')}" class="brand"><g:img dir="images/" file="iai-logo-black.png" /></a>
 
 	  <div class="nav-collapse collapse">
 	    <ul class="nav">
@@ -89,7 +87,7 @@
 		</li>
 	      </sec:ifLoggedIn>
 	      <sec:ifNotLoggedIn>
-		<li>
+		<li class="${controllerName.equals('login') ? 'active' : ''}">
 		  <g:link controller="login" 
 			  action="auth" params="[url: "${request.forwardURI}"]">Login</g:link>
 		</li>
